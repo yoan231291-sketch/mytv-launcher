@@ -36,9 +36,14 @@
   .live .dot { width:.6em; height:.6em; border-radius:50%; background:#ef4444; box-shadow:0 0 10px #ef4444; animation:pulse 2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity:.35; } }
   .live .spot { font-weight:400; color:var(--muted); }
-  .clock { text-align:right; }
-  .clock .t { font-size:clamp(28px,3.3vw,64px); font-weight:300; line-height:1; font-variant-numeric:tabular-nums; }
-  .clock .w { margin-top:.45em; font-size:clamp(12px,1vw,19px); color:var(--muted); font-variant-numeric:tabular-nums; }
+  /* Hora y temperatura de donde está la TV: grandes, en negrita y siempre visibles (también en modo cine) */
+  #local { position:fixed; top:3.2vh; right:3.5vw; text-align:right; z-index:4; pointer-events:none; line-height:1;
+    text-shadow:0 2px 6px rgba(0,0,0,.75), 0 0 28px rgba(0,0,0,.45); font-variant-numeric:tabular-nums; }
+  #local .lt { font-size:clamp(56px,7.6vw,150px); font-weight:800; letter-spacing:-.03em; }
+  #local .lt small { font-size:.32em; font-weight:700; letter-spacing:0; margin-left:.15em; }
+  #local .lw { margin-top:.12em; font-size:clamp(30px,3.9vw,78px); font-weight:800; letter-spacing:-.01em; }
+  #local .lp { margin-top:.5em; font-size:clamp(12px,1.05vw,20px); font-weight:600; color:rgba(255,255,255,.85); letter-spacing:.05em; text-transform:uppercase; }
+  .live .cam { font-weight:400; color:var(--muted); }
 
   /* Fila de apps estilo Apple TV: mosaicos 16:9, el enfocado se levanta con sombra, brillo y leve inclinación */
   .dock { position:absolute; left:0; right:0; bottom:7vh; display:flex; justify-content:center; align-items:flex-end; gap:2vw; padding:0 4vw; perspective:900px; }
@@ -98,11 +103,12 @@
 
 <div class="ui">
   <div class="top">
-    <div class="live"><span class="dot"></span><span id="cityName">EN VIVO</span><span class="spot" id="citySpot"></span></div>
-    <div class="clock"><div class="t" id="clock">--:--</div><div class="w" id="weather">&nbsp;</div></div>
+    <div class="live"><span class="dot"></span><span id="cityName">EN VIVO</span><span class="spot" id="citySpot"></span><span class="cam" id="camInfo"></span></div>
   </div>
   <div class="dock" id="dock"></div>
 </div>
+
+<div id="local"><div class="lt" id="localTime">--:--</div><div class="lw" id="localWeather">&nbsp;</div><div class="lp" id="localPlace"></div></div>
 
 <div id="cityToast"></div>
 
@@ -289,25 +295,51 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && pl
 
 // ---------- Hora y clima ----------
 const fmt = tz => new Intl.DateTimeFormat('es', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:tz }).format(new Date());
+let camWeather = '';
 function tickClocks() {
-  $('clock').textContent = fmt(city().tz);
+  $('camInfo').textContent = `· ${fmt(city().tz)}${camWeather ? ' · ' + camWeather : ''}`;
   document.querySelectorAll('[data-tz]').forEach(el => el.textContent = fmt(el.dataset.tz));
+  // Hora local de la TV (zona horaria del televisor), formato 12 h
+  const d = new Date(), h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
+  $('localTime').innerHTML = `${h % 12 || 12}:${m}<small>${h < 12 ? 'AM' : 'PM'}</small>`;
 }
-setInterval(tickClocks, 15000);
+setInterval(tickClocks, 5000);
 const WMO = { 0:['Despejado','☀️','🌙'], 1:['Despejado','🌤','🌙'], 2:['Algo nublado','⛅','☁️'], 3:['Nublado','☁️','☁️'], 45:['Neblina','🌫','🌫'], 48:['Neblina','🌫','🌫'],
   51:['Llovizna','🌦','🌧'], 53:['Llovizna','🌦','🌧'], 55:['Llovizna','🌧','🌧'], 61:['Lluvia','🌧','🌧'], 63:['Lluvia','🌧','🌧'], 65:['Lluvia fuerte','🌧','🌧'],
   71:['Nieve','🌨','🌨'], 73:['Nieve','🌨','🌨'], 75:['Nevada','❄️','❄️'], 80:['Chubascos','🌦','🌧'], 81:['Chubascos','🌧','🌧'], 82:['Chubascos','⛈','⛈'], 95:['Tormenta','⛈','⛈'], 96:['Tormenta','⛈','⛈'], 99:['Tormenta','⛈','⛈'] };
+const meteo = (lat, lon) => fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,is_day&timezone=auto`).then(r => r.json()).then(j => j.current);
 let wReq = 0;
-async function loadWeather() {
+async function loadWeather() {                       // clima de la ciudad de la cámara (pequeño)
   const c = city(), req = ++wReq;
   try {
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&current=temperature_2m,weather_code,is_day&timezone=auto`);
-    const { current } = await r.json(); if (req !== wReq) return;
-    const w = WMO[current.weather_code] || ['','🌡','🌡'], t = current.temperature_2m;
-    $('weather').textContent = `${current.is_day ? w[1] : w[2]} ${Math.round(t*9/5+32)}°F · ${Math.round(t)}°C  ${w[0]}`;
-  } catch { if (req === wReq) $('weather').innerHTML = '&nbsp;'; }
+    const cur = await meteo(c.lat, c.lon); if (req !== wReq) return;
+    const w = WMO[cur.weather_code] || ['','🌡','🌡'];
+    camWeather = `${cur.is_day ? w[1] : w[2]} ${Math.round(cur.temperature_2m*9/5+32)}°F`;
+  } catch { camWeather = ''; }
+  tickClocks();
 }
 setInterval(loadWeather, 15 * 60 * 1000);
+
+// Ubicación de la TV: aproximada por internet (sin GPS). Si falla, Indianápolis.
+async function tvLocation() {
+  const saved = store.get('tvLoc', null);
+  if (saved && Date.now() - saved.t < 24 * 3600e3) return saved;
+  try {
+    const g = await fetch('https://get.geojs.io/v1/ip/geo.json').then(r => r.json());
+    const loc = { lat: +g.latitude, lon: +g.longitude, name: g.city || g.region || '', t: Date.now() };
+    if (isFinite(loc.lat) && isFinite(loc.lon)) { store.set('tvLoc', loc); return loc; }
+  } catch {}
+  return { lat: 39.768, lon: -86.158, name: 'Indianapolis' };
+}
+async function loadLocalWeather() {                  // clima de donde está la TV (grande)
+  const loc = await tvLocation();
+  $('localPlace').textContent = loc.name;
+  try {
+    const cur = await meteo(loc.lat, loc.lon), w = WMO[cur.weather_code] || ['','🌡','🌡'];
+    $('localWeather').textContent = `${cur.is_day ? w[1] : w[2]} ${Math.round(cur.temperature_2m*9/5+32)}°F`;
+  } catch { $('localWeather').innerHTML = '&nbsp;'; }
+}
+setInterval(loadLocalWeather, 15 * 60 * 1000);
 
 // ---------- Ocultar la interfaz sola para ver la cámara ----------
 let idleT;
@@ -355,7 +387,7 @@ document.addEventListener('mousemove', wake);
 // ---------- Inicio ----------
 renderDock();
 $('cityName').textContent = city().name; $('citySpot').textContent = '· ' + city().spot;
-tickClocks(); loadWeather(); wake();
+tickClocks(); loadWeather(); loadLocalWeather(); wake();
 setTimeout(() => toast('◄ ► apps   ·   ▲ ▼ ciudad   ·   ⏩ cámara'), 1500);
 const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
 </script>
