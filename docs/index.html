@@ -198,11 +198,14 @@ function fitCam() {
   Object.assign(el.style, { left:'0px', top:'0px', width: innerWidth + 'px', height: innerHeight + 'px' });
 }
 addEventListener('resize', fitCam);
-let revealT;
+let revealT, watchT;
 function playCurrent() {
   if (!playerReady) return;
   $('camWrap').classList.add('loading');
   player.loadVideoById(city().cams[camIdx]); player.mute(); player.playVideo();
+  // Vigilante: si en 15 s la cámara no está reproduciendo (caída o trabada), pasa a la siguiente
+  clearTimeout(watchT); const want = city().cams[camIdx];
+  watchT = setTimeout(() => { if (player.getPlayerState() !== 1 && city().cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 15000);
   // Mostramos el reproductor enseguida (si YouTube pone un anuncio antes, se ve en vez de pantalla negra)
   clearTimeout(revealT); revealT = setTimeout(() => $('camWrap').classList.remove('loading'), 1500);
 }
