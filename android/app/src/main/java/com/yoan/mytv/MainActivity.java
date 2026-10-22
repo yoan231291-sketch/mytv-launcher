@@ -148,6 +148,20 @@ public class MainActivity extends Activity {
             startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         }
 
+        /** Abre una pantalla concreta de Ajustes de Fire TV ("paquete/.Clase" o una acción). */
+        @JavascriptInterface
+        public boolean openSetting(String target) {
+            Intent i = new Intent();
+            if (target.contains("/")) {
+                String[] p = target.split("/", 2);
+                i.setClassName(p[0], p[1].startsWith(".") ? p[0] + p[1] : p[1]);
+            } else {
+                i.setAction(target).setPackage("com.amazon.tv.settings.v2");
+            }
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try { startActivity(i); return true; } catch (Exception ex) { return false; }
+        }
+
         /** Lista de apps instaladas (nombre, paquete, ícono en base64). */
         @JavascriptInterface
         public String getApps() {

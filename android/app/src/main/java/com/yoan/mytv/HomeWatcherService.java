@@ -21,11 +21,13 @@ public class HomeWatcherService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
-        if (e.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
+        int t = e.getEventType();
+        // Cambio de pantalla, o foco que se mueve dentro del inicio de Amazon (p. ej. Home estando ya ahí)
+        if (t != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && t != AccessibilityEvent.TYPE_VIEW_FOCUSED) return;
         CharSequence pkg = e.getPackageName();
         if (pkg == null || !AMAZON_HOME.contentEquals(pkg)) return;
         long now = SystemClock.elapsedRealtime();
-        if (now < allowUntil || now - lastLaunch < 800) return;
+        if (now < allowUntil || now - lastLaunch < 1500) return;
         lastLaunch = now;
         startActivity(new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
