@@ -15,7 +15,7 @@
 
   /* ---------- Cámara ---------- */
   #camWrap { position:fixed; inset:0; overflow:hidden; background:#000; }
-  /* Sin transform: en Fire TV el video va en una capa aparte que ignora transform/scale. Tamaño y posición los pone fitCam() */
+  /* Sin transform ni recorte: en Fire TV el video va en una capa aparte; debe quedar justo en 0,0 y del tamaño de la pantalla */
   #camWrap iframe, #player { position:absolute; top:0; left:0; width:100vw; height:100vh; pointer-events:none; border:0; transition:opacity .8s ease; }
   #camWrap.loading iframe { opacity:0; }
   #loader { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; transition:opacity .6s; }
@@ -191,11 +191,11 @@ function onYouTubeIframeAPIReady() {
     }
   });
 }
-// Llena toda la pantalla (como "cover") con medidas en píxeles; 1.08 recorta un poco los bordes negros de algunas cámaras
+// Video exactamente del tamaño de la pantalla, empezando en 0,0.
+// En Fire TV la capa de video se recorta mal si empieza fuera de pantalla (deja franja negra), así que nada de "agrandar".
 function fitCam() {
   const el = document.getElementById('player'); if (!el) return;
-  const W = innerWidth, H = innerHeight, w = Math.ceil(Math.max(W, H * 16 / 9) * 1.08), h = Math.ceil(w * 9 / 16);
-  Object.assign(el.style, { width: w + 'px', height: h + 'px', left: Math.floor((W - w) / 2) + 'px', top: Math.floor((H - h) / 2) + 'px' });
+  Object.assign(el.style, { left:'0px', top:'0px', width: innerWidth + 'px', height: innerHeight + 'px' });
 }
 addEventListener('resize', fitCam);
 let revealT;
