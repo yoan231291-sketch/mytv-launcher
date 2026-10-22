@@ -5,7 +5,7 @@
 // =====================================================================
 window.CITIES = [
   { id:'tokyo',  name:'Tokio',            spot:'Cruce de Shibuya',   flag:'🇯🇵', tz:'Asia/Tokyo',          lat:35.659,  lon:139.700,  cams:['dfVK7ld38Ys','8H3nRCFVR6Y'] },
-  { id:'ny',     name:'Nueva York',       spot:'Times Square',       flag:'🇺🇸', tz:'America/New_York',    lat:40.758,  lon:-73.985,  cams:['VXo0VqVcbK4','pv-2pVViNwc','VGnFLdQW39A','5C9oM7C2Q9k'] },
+  { id:'ny',     name:'Nueva York',       spot:'Times Square',       flag:'🇺🇸', tz:'America/New_York',    lat:40.758,  lon:-73.985,  cams:['pv-2pVViNwc','VGnFLdQW39A','5C9oM7C2Q9k','VXo0VqVcbK4'] },
   { id:'paris',  name:'París',            spot:'Torre Eiffel',       flag:'🇫🇷', tz:'Europe/Paris',        lat:48.858,  lon:2.294,    cams:['QI-PPEW2Bgc','-xzg3wujOVM'] },
   { id:'london', name:'Londres',          spot:'London Bridge',      flag:'🇬🇧', tz:'Europe/London',       lat:51.507,  lon:-0.087,   cams:['znmUEZUM9Zc','zMCea32gpmg'] },
   { id:'venice', name:'Venecia',          spot:'Gran Canal',         flag:'🇮🇹', tz:'Europe/Rome',         lat:45.437,  lon:12.335,   cams:['r8N6IsoIkTk','aaJT8y3zfWs','7-XBRpKSv4Q'] },
