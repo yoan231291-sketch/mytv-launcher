@@ -28,7 +28,7 @@ public class HomeWatcherService extends AccessibilityService {
         if (pkg == null || !AMAZON_HOME.contentEquals(pkg)) return;
         long now = SystemClock.elapsedRealtime();
         if (now < allowUntil || now - lastLaunch < 1500) return;
-        lastLaunch = now;
+        lastLaunch = now; android.util.Log.i("MyTV", "inicio de Amazon detectado: abriendo MyTV");
         startActivity(new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
     }

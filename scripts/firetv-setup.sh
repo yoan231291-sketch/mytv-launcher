@@ -47,6 +47,8 @@ if ! ${A[@]} install -r "$TMP/mytv.apk"; then
 fi
 
 echo "▶ Activando MyTV como pantalla de inicio…"
+# Apagar y volver a encender: tras reinstalar, la TV no reconecta el servicio si el valor no cambia
+${A[@]} shell settings delete secure enabled_accessibility_services; sleep 1
 ${A[@]} shell settings put secure enabled_accessibility_services "$PKG/$PKG.HomeWatcherService"
 ${A[@]} shell settings put secure accessibility_enabled 1
 
