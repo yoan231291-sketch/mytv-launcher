@@ -42,7 +42,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        // Pantalla siempre encendida mientras MyTV está al frente: sin salvapantallas ni suspensión
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        WebView.setWebContentsDebuggingEnabled(true);   // permite revisar la web desde la Mac por ADB
         web = new WebView(this);
         web.setBackgroundColor(Color.BLACK);
         setContentView(web);
@@ -55,8 +57,12 @@ public class MainActivity extends Activity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-        web.setWebChromeClient(new WebChromeClient());
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onConsoleMessage(android.webkit.ConsoleMessage m) {
+                android.util.Log.i("MyTV-web", m.message() + " @" + m.lineNumber());
+                return true;
+            }
+        });
         web.addJavascriptInterface(new Bridge(), "AndroidTV");
         web.setWebViewClient(new WebViewClient() {
             @Override
