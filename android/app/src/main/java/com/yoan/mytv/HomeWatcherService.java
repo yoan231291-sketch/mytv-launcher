@@ -3,6 +3,7 @@ package com.yoan.mytv;
 import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
 import android.os.SystemClock;
+import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
 /**
@@ -28,6 +29,31 @@ public class HomeWatcherService extends AccessibilityService {
         lastLaunch = now;
         startActivity(new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+    }
+
+    // --- Botón Home del control: toque corto = MyTV al instante; mantener = inicio de Amazon ---
+    private long homeDown = 0;
+
+    @Override
+    protected boolean onKeyEvent(KeyEvent e) {
+        if (e.getKeyCode() != KeyEvent.KEYCODE_HOME) return false;
+        if (e.getAction() == KeyEvent.ACTION_DOWN) {
+            if (e.getRepeatCount() == 0) homeDown = SystemClock.elapsedRealtime();
+            return true;
+        }
+        if (e.getAction() == KeyEvent.ACTION_UP) {
+            long held = SystemClock.elapsedRealtime() - homeDown;
+            if (held > 700) {                       // mantener presionado: ir al inicio de Amazon
+                allowAmazonHomeFor(4000);
+                performGlobalAction(GLOBAL_ACTION_HOME);
+            } else {
+                lastLaunch = SystemClock.elapsedRealtime();
+                startActivity(new Intent(this, MainActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+            }
+            return true;
+        }
+        return true;
     }
 
     @Override public void onInterrupt() { }

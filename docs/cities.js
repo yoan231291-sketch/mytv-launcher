@@ -29,5 +29,6 @@ window.APPS = [
   { name:'Disney+',     mark:'D+', color:'#3b6cff', pkgs:['com.disney.disneyplus'] },
   { name:'YouTube',     mark:'▶',  color:'#FF0000', pkgs:['com.amazon.firetv.youtube','com.google.android.youtube.tv'] },
   { name:'Apple TV',    mark:'tv', color:'#FFFFFF', pkgs:['com.apple.atve.amazon.appletv','com.apple.atve.androidtv.appletv'] },
+  { name:'Spotify',     mark:'●',  color:'#1DB954', pkgs:['com.spotify.tv.android'] },
   { name:'Prime Video', mark:'P',  color:'#00A8E1', pkgs:['com.amazon.firebat','com.amazon.avod','com.amazon.amazonvideo.livingroom'] },
 ];
