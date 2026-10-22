@@ -1,0 +1,16 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;height:100vh;background:#05070c;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;justify-content:center;padding:0 6vw}
+h1{font-weight:300;font-size:44px;margin:0 0 6px}p{color:#9aa3b2;margin:0 0 28px}
+.a{display:block;width:380px;padding:16px 22px;margin:8px 0;border-radius:14px;background:rgba(255,255,255,.07);font-size:22px;border:2px solid transparent}
+.a.on{background:rgba(255,255,255,.2);border-color:#fff}
+</style></head><body>
+<h1>Sin conexión</h1><p>Las cámaras vuelven solas cuando regrese el internet. Mientras, puedes abrir tus apps.</p>
+<div id="l"></div>
+<script>
+var A=[['Stremio','com.stremio.one'],['Netflix','com.netflix.ninja'],['Disney+','com.disney.disneyplus'],['YouTube','com.amazon.firetv.youtube,com.google.android.youtube.tv'],['Apple TV','com.apple.atve.amazon.appletv'],['Prime Video','com.amazon.firebat,com.amazon.avod'],['Ajustes','']],f=0;
+var l=document.getElementById('l');A.forEach(function(a,i){var d=document.createElement('div');d.className='a'+(i?'':' on');d.textContent=a[0];l.appendChild(d)});
+function r(){[].forEach.call(l.children,function(d,i){d.className='a'+(i==f?' on':'')})}
+function go(){var a=A[f];if(!window.AndroidTV)return;a[1]?AndroidTV.launch(a[1]):AndroidTV.openSettings()}
+document.onkeydown=function(e){if(e.key=='ArrowDown'&&f<A.length-1)f++;else if(e.key=='ArrowUp'&&f>0)f--;else if(e.key=='Enter')go();r();e.preventDefault()};
+</script></body></html>
