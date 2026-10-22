@@ -181,7 +181,7 @@ function onYouTubeIframeAPIReady() {
     videoId: city().cams[camIdx],
     playerVars: { autoplay:1, mute:1, controls:0, disablekb:1, fs:0, iv_load_policy:3, modestbranding:1, playsinline:1, rel:0, origin: location.origin },
     events: {
-      onReady: e => { log('player listo'); e.target.mute(); e.target.playVideo(); selectCity(cityIdx); playerReady = true; },  // sin recargar el mismo video
+      onReady: e => { log('player listo'); setTimeout(() => $('camWrap').classList.remove('loading'), 1500); e.target.mute(); e.target.playVideo(); selectCity(cityIdx); playerReady = true; },  // sin recargar el mismo video
       onStateChange: e => {
         log('estado', e.data);
         if (e.data === YT.PlayerState.PLAYING) { $('camWrap').classList.remove('loading'); failCount = 0; }
@@ -196,8 +196,8 @@ function playCurrent() {
   if (!playerReady) return;
   $('camWrap').classList.add('loading');
   player.loadVideoById(city().cams[camIdx]); player.mute(); player.playVideo();
-  // Si en 10 s no confirma que está reproduciendo, mostramos el reproductor igual
-  clearTimeout(revealT); revealT = setTimeout(() => $('camWrap').classList.remove('loading'), 10000);
+  // Mostramos el reproductor enseguida (si YouTube pone un anuncio antes, se ve en vez de pantalla negra)
+  clearTimeout(revealT); revealT = setTimeout(() => $('camWrap').classList.remove('loading'), 1500);
 }
 function nextCam(auto, dir = 1) {
   const n = city().cams.length;
