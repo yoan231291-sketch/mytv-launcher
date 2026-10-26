@@ -2,7 +2,10 @@ package com.yoan.mytv;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -57,6 +60,31 @@ public class HomeWatcherService extends AccessibilityService {
         }
         return true;
     }
+
+    // Revisión cada 4 s: si el inicio de Amazon quedó al frente (p. ej. al encender la TV) y no hubo evento, volvemos a MyTV
+    private final Handler h = new Handler(Looper.getMainLooper());
+    private final Runnable poll = new Runnable() {
+        @Override public void run() {
+            try {
+                AccessibilityNodeInfo root = getRootInActiveWindow();
+                if (root != null) {
+                    CharSequence pkg = root.getPackageName();
+                    root.recycle();
+                    long now = SystemClock.elapsedRealtime();
+                    if (pkg != null && AMAZON_HOME.contentEquals(pkg) && now >= allowUntil && now - lastLaunch > 3000) {
+                        lastLaunch = now;
+                        android.util.Log.i("MyTV", "inicio de Amazon al frente (revisión): abriendo MyTV");
+                        startActivity(new Intent(HomeWatcherService.this, MainActivity.class)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+                    }
+                }
+            } catch (Exception ignored) { }
+            h.postDelayed(this, 4000);
+        }
+    };
+
+    @Override protected void onServiceConnected() { super.onServiceConnected(); h.removeCallbacks(poll); h.postDelayed(poll, 4000); }
+    @Override public void onDestroy() { h.removeCallbacks(poll); super.onDestroy(); }
 
     @Override public void onInterrupt() { }
 }

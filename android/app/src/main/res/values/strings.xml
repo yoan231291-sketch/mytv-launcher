@@ -1,3 +1,3 @@
 <resources>
-    <string name="watcher_desc">Abre MyTV cuando aparece el inicio de Fire TV (al presionar Home o al prender la TV). No lee ni guarda nada de la pantalla.</string>
+    <string name="watcher_desc">Abre MyTV cuando aparece el inicio de Fire TV (al presionar Home o al prender la TV). Solo revisa qué app está al frente; no lee ni guarda el contenido de la pantalla.</string>
 </resources>
