@@ -1,0 +1,18 @@
+{
+  "tokyo":  { "search": ["shibuya scramble crossing live camera", "tokyo live camera 24/7"] },
+  "ny":     { "search": ["times square live cam", "new york city live cam 24/7", "earthcam new york live"] },
+  "paris":  { "search": ["eiffel tower live webcam", "paris live webcam 24/7"] },
+  "london": { "search": ["london live webcam 24/7", "abbey road live earthcam", "tower bridge live cam"] },
+  "venice": { "search": ["venice live webcam grand canal", "venezia live cam"] },
+  "rome":   { "search": ["rome live webcam", "roma live cam vaticano", "trevi fountain live cam"] },
+  "dubai":  { "search": ["dubai live cam burj khalifa", "dubai live webcam 24/7"] },
+  "vegas":  { "search": ["las vegas strip live cam", "fremont street live cam", "las vegas live webcam"] },
+  "miami":  { "search": ["miami beach live cam", "south beach live cam", "miami live webcam"] },
+  "cdmx":   { "search": ["zocalo ciudad de mexico en vivo", "ciudad de mexico camara en vivo"] },
+  "rio":    { "search": ["copacabana live cam", "rio de janeiro webcam ao vivo"] },
+  "hawaii": { "search": ["waikiki live cam", "honolulu live webcam"] },
+  "ams":    { "search": ["amsterdam live webcam", "amsterdam dam square live"] },
+  "bcn":    { "search": ["barcelona live webcam", "barcelona en directo camara"] },
+  "seoul":  { "search": ["seoul han river live cam", "seoul live camera 24/7"] },
+  "sydney": { "search": ["sydney harbour live cam", "sydney opera house live webcam"] }
+}
