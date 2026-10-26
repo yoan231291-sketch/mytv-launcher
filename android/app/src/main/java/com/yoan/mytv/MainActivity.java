@@ -188,6 +188,18 @@ public class MainActivity extends Activity {
             return out.toString();
         }
 
+        /**
+         * Busca en YouTube transmisiones EN VIVO para una ciudad, desde el internet de la casa (YouTube no lo bloquea).
+         * Asíncrono: al terminar llama window[callback](tag, [ids]) en la página.
+         */
+        @JavascriptInterface
+        public void findLive(final String query, final String tag, final String callback) {
+            new Thread(() -> {
+                String json = LiveSearch.search(query).toString();
+                ui.post(() -> web.evaluateJavascript("window." + callback + " && " + callback + "(" + JSONObject.quote(tag) + "," + json + ")", null));
+            }).start();
+        }
+
         @JavascriptInterface public int version() { return BuildConfig.VERSION_CODE; }
     }
 

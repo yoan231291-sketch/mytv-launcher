@@ -125,7 +125,7 @@ const CITIES = window.CITIES, APPS = window.APPS;
 const store = { get(k,d){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
                 set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 let cityIdx = Math.max(0, CITIES.findIndex(c => c.id === store.get('city','tokyo')));
-let camIdx = 0, failCount = 0, player = null, playerReady = false;
+let camIdx = 0, failCount = 0, player = null, playerReady = false, cams = [];
 const city = () => CITIES[cityIdx];
 const log = (...a) => console.log('[MyTV]', ...a);
 
@@ -234,14 +234,58 @@ function pickOverlay() {
   else selectCity(ovIdx, true);
 }
 
-// ---------- Ciudad y cámara ----------
+// ---------- Ciudad y cámara (con auto-reparación) ----------
+// Cámaras que fallaron: se evitan durante 12 h (los enlaces de YouTube en vivo cambian cada pocos días)
+const BAD_MS = 12 * 3600e3;
+const badMap = store.get('badCams', {});
+const isBad = v => badMap[v] && Date.now() - badMap[v] < BAD_MS;
+function markBad(v) { if (!v) return; badMap[v] = Date.now(); store.set('badCams', badMap); }
+// Lista de la ciudad: primero las que encontró la TV buscando, luego las de cities.js; sin las que fallaron
+function buildCams(c) { return [...new Set([...store.get('found:' + c.id, []), ...c.cams])].filter(v => !isBad(v)); }
+
 function selectCity(i, announce) {
   cityIdx = (i + CITIES.length) % CITIES.length; camIdx = 0; failCount = 0;
   store.set('city', city().id);
   $('cityName').textContent = city().name;
   $('citySpot').textContent = '· ' + city().spot;
   if (announce) showCityToast();
-  playCurrent(); loadWeather(); tickClocks();
+  cams = buildCams(city()); qIdx = 0;
+  loadWeather(); tickClocks();
+  if (!cams.length) discover(); else playCurrent();
+}
+
+// Cuando una ciudad se queda sin cámaras: la TV busca en YouTube transmisiones EN VIVO nuevas.
+let qIdx = 0, skips = 0, pauseT;
+const searched = store.get('searched', {});
+function discover() {
+  const c = city(), queries = c.q || [c.name + ' live cam'];
+  const canSearch = TV && typeof AndroidTV.findLive === 'function';
+  const recently = searched[c.id] && Date.now() - searched[c.id] < 30 * 60e3 && qIdx === 0;
+  if (canSearch && !recently && qIdx < queries.length) {
+    toast('Buscando cámaras en vivo de ' + c.name + '…');
+    log('buscando', queries[qIdx]);
+    AndroidTV.findLive(queries[qIdx], c.id, 'onLiveFound');
+    return;
+  }
+  skipCity();
+}
+window.onLiveFound = (tag, ids) => {
+  ids = (ids || []).filter(v => !isBad(v));
+  log('encontradas', tag, ids.join(','));
+  if (ids.length) store.set('found:' + tag, ids);
+  if (tag !== city().id) return;
+  searched[tag] = Date.now(); store.set('searched', searched);
+  if (ids.length) { cams = ids; camIdx = 0; playCurrent(); }
+  else { qIdx++; discover(); }
+};
+// Sin cámaras en esta ciudad: pasa a la siguiente. Si ninguna ciudad tiene, espera 5 min y reintenta.
+function skipCity() {
+  if (++skips >= CITIES.length) {
+    skips = 0; toast('No hay cámaras disponibles ahora. Reintento en 5 minutos.');
+    clearTimeout(pauseT); pauseT = setTimeout(() => selectCity(cityIdx, false), 5 * 60e3); return;
+  }
+  toast(city().name + ': sin cámaras en vivo ahora, paso a la siguiente ciudad');
+  setTimeout(() => selectCity(cityIdx + 1, true), 1200);
 }
 let ctT;
 function showCityToast() {
@@ -252,13 +296,13 @@ function showCityToast() {
 function onYouTubeIframeAPIReady() {
   log('API lista');
   player = new YT.Player('player', {
-    videoId: city().cams[camIdx],
+    videoId: (cams = buildCams(city()))[0] || city().cams[0],
     playerVars: { autoplay:1, mute:1, controls:0, disablekb:1, fs:0, iv_load_policy:3, modestbranding:1, playsinline:1, rel:0, origin: location.origin },
     events: {
-      onReady: e => { log('player listo'); fitCam(); setTimeout(() => $('camWrap').classList.remove('loading'), 1500); e.target.mute(); e.target.playVideo(); selectCity(cityIdx); playerReady = true; },  // sin recargar el mismo video
+      onReady: e => { log('player listo'); fitCam(); playerReady = true; selectCity(cityIdx); },
       onStateChange: e => {
         log('estado', e.data);
-        if (e.data === YT.PlayerState.PLAYING) { $('camWrap').classList.remove('loading'); failCount = 0; }
+        if (e.data === YT.PlayerState.PLAYING) { $('camWrap').classList.remove('loading'); failCount = 0; skips = 0; }
         if (e.data === YT.PlayerState.ENDED) nextCam(true);
       },
       onError: e => { log('error', e.data); nextCam(true); }
@@ -274,20 +318,26 @@ function fitCam() {
 addEventListener('resize', fitCam);
 let revealT, watchT;
 function playCurrent() {
-  if (!playerReady) return;
+  if (!playerReady || !cams.length) return;
+  const want = cams[camIdx];
   $('camWrap').classList.add('loading');
-  player.loadVideoById(city().cams[camIdx]); player.mute(); player.playVideo();
+  player.loadVideoById(want); player.mute(); player.playVideo();
   // Vigilante: si en 15 s la cámara no está reproduciendo (caída o trabada), pasa a la siguiente
-  clearTimeout(watchT); const want = city().cams[camIdx];
-  watchT = setTimeout(() => { if (player.getPlayerState() !== 1 && city().cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 15000);
+  clearTimeout(watchT);
+  watchT = setTimeout(() => { if (player.getPlayerState() !== 1 && cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 15000);
   // Mostramos el reproductor enseguida (si YouTube pone un anuncio antes, se ve en vez de pantalla negra)
   clearTimeout(revealT); revealT = setTimeout(() => $('camWrap').classList.remove('loading'), 1500);
 }
 function nextCam(auto, dir = 1) {
-  const n = city().cams.length;
-  if (auto && ++failCount >= n) { toast('Ninguna cámara de ' + city().name + ' está transmitiendo'); return; }
+  if (auto) {                                  // falló: se marca, se quita y se prueba la siguiente
+    clearTimeout(watchT);
+    markBad(cams[camIdx]); cams.splice(camIdx, 1);
+    if (!cams.length) return discover();
+    camIdx = camIdx % cams.length; return playCurrent();
+  }
+  const n = cams.length; if (!n) return;
   camIdx = (camIdx + dir + n) % n;
-  if (!auto) toast(`Cámara ${camIdx + 1} de ${n}`);
+  toast(`Cámara ${camIdx + 1} de ${n}`);
   playCurrent();
 }
 // Al volver de otra app, retoma la cámara
