@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
     private static final long STALL_MS = 120_000;
     private final Runnable watchdog = new Runnable() {
         @Override public void run() {
+            web.resumeTimers(); web.onResume();           // por si la página quedó congelada
             if (!offline && System.currentTimeMillis() - lastAlive > STALL_MS) {
                 android.util.Log.i("MyTV", "vigilante: la página no responde, recargando");
                 lastAlive = System.currentTimeMillis();
@@ -137,7 +138,9 @@ public class MainActivity extends Activity {
         ui.removeCallbacks(watchdog); ui.postDelayed(watchdog, 30_000);
     }
     // Al abrir otra app, pausamos la cámara (y el vigilante) para no gastar internet ni CPU
-    @Override protected void onStop() { super.onStop(); ui.removeCallbacks(watchdog); web.onPause(); web.pauseTimers(); }
+    // Al abrir otra app pausamos solo esta vista (NO pauseTimers: es global y en Fire TV a veces no se reanuda → pantalla negra)
+    @Override protected void onStop() { super.onStop(); ui.removeCallbacks(watchdog); web.onPause(); }
+    @Override protected void onStart() { super.onStart(); web.onResume(); web.resumeTimers(); }
     // Poca memoria: soltamos caché del WebView
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (level >= TRIM_MEMORY_RUNNING_LOW) web.freeMemory(); }
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); if (offline) load(); }
