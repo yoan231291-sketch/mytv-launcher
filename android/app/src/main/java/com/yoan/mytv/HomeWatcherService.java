@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -61,22 +60,28 @@ public class HomeWatcherService extends AccessibilityService {
         return true;
     }
 
-    // Revisión cada 4 s: si el inicio de Amazon quedó al frente (p. ej. al encender la TV) y no hubo evento, volvemos a MyTV
+    // Revisión cada 4 s con las estadísticas de uso (permiso concedido por ADB al instalar):
+    // si el inicio de Amazon quedó al frente sin generar evento (p. ej. al encender la TV), volvemos a MyTV.
     private final Handler h = new Handler(Looper.getMainLooper());
+    private String foreground() {
+        android.app.usage.UsageStatsManager um = (android.app.usage.UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
+        if (um == null) return null;
+        long now = System.currentTimeMillis();
+        android.app.usage.UsageEvents ev = um.queryEvents(now - 6 * 3600_000L, now);
+        android.app.usage.UsageEvents.Event e = new android.app.usage.UsageEvents.Event();
+        String last = null;
+        while (ev.hasNextEvent()) { ev.getNextEvent(e); if (e.getEventType() == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) last = e.getPackageName(); }
+        return last;
+    }
     private final Runnable poll = new Runnable() {
         @Override public void run() {
             try {
-                AccessibilityNodeInfo root = getRootInActiveWindow();
-                if (root != null) {
-                    CharSequence pkg = root.getPackageName();
-                    root.recycle();
-                    long now = SystemClock.elapsedRealtime();
-                    if (pkg != null && AMAZON_HOME.contentEquals(pkg) && now >= allowUntil && now - lastLaunch > 3000) {
-                        lastLaunch = now;
-                        android.util.Log.i("MyTV", "inicio de Amazon al frente (revisión): abriendo MyTV");
-                        startActivity(new Intent(HomeWatcherService.this, MainActivity.class)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
-                    }
+                long now = SystemClock.elapsedRealtime();
+                if (AMAZON_HOME.equals(foreground()) && now >= allowUntil && now - lastLaunch > 3000) {
+                    lastLaunch = now;
+                    android.util.Log.i("MyTV", "inicio de Amazon al frente (revisión): abriendo MyTV");
+                    startActivity(new Intent(HomeWatcherService.this, MainActivity.class)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
                 }
             } catch (Exception ignored) { }
             h.postDelayed(this, 4000);

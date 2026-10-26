@@ -51,6 +51,7 @@ echo "▶ Activando MyTV como pantalla de inicio…"
 ${A[@]} shell settings delete secure enabled_accessibility_services; sleep 1
 ${A[@]} shell settings put secure enabled_accessibility_services "$PKG/$PKG.HomeWatcherService"
 ${A[@]} shell settings put secure accessibility_enabled 1
+${A[@]} shell appops set $PKG GET_USAGE_STATS allow   # para la revisión de "qué app está al frente"
 
 if [ "$MODE" = "--clean" ]; then
   echo "▶ Apagando apps de Amazon que no usas…"
