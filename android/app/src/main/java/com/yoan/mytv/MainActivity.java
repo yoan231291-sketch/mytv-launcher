@@ -14,6 +14,7 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.util.Base64;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -231,7 +232,30 @@ public class MainActivity extends Activity {
         /** La página avisa que la cámara se está reproduciendo (ver vigilante). */
         @JavascriptInterface public void alive() { lastAlive = System.currentTimeMillis(); }
 
+        /**
+         * Pasa un "puntero" sobre el video y lo retira, como haría un mouse: así YouTube esconde sus controles
+         * (título, pausa, "More videos") igual que en una computadora. La página activa/desactiva pointer-events.
+         */
+        @JavascriptInterface
+        public void hoverNudge() {
+            ui.post(() -> {
+                final float x = web.getWidth() / 2f, y = web.getHeight() / 2f;
+                hover(MotionEvent.ACTION_HOVER_ENTER, x, y);
+                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_MOVE, x + 8, y + 6), 100);
+                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_MOVE, x + 12, y + 10), 650);   // ya sin pointer-events: sale del video
+                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_EXIT, x + 12, y + 10), 750);
+            });
+        }
+
         @JavascriptInterface public int version() { return BuildConfig.VERSION_CODE; }
+    }
+
+    private void hover(int action, float x, float y) {
+        long t = android.os.SystemClock.uptimeMillis();
+        MotionEvent e = MotionEvent.obtain(t, t, action, x, y, 0);
+        e.setSource(android.view.InputDevice.SOURCE_MOUSE);
+        web.dispatchGenericMotionEvent(e);
+        e.recycle();
     }
 
     private static String toDataUrl(Drawable d) {

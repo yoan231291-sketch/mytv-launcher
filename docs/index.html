@@ -245,8 +245,8 @@ const BAD_MS = 12 * 3600e3;
 const badMap = store.get('badCams', {});
 const isBad = v => badMap[v] && Date.now() - badMap[v] < BAD_MS;
 function markBad(v) { if (!v) return; badMap[v] = Date.now(); store.set('badCams', badMap); }
-// Lista de la ciudad: primero las que encontró la TV buscando, luego las de cities.js; sin las que fallaron
-function buildCams(c) { return [...new Set([...store.get('found:' + c.id, []), ...c.cams])].filter(v => !isBad(v)); }
+// Lista de la ciudad: primero las de cities.js (revisadas a mano, sin marca de agua), luego las que encontró la TV buscando
+function buildCams(c) { return [...new Set([...c.cams, ...store.get('found:' + c.id, [])])].filter(v => !isBad(v)); }
 
 function selectCity(i, announce) {
   cityIdx = (i + CITIES.length) % CITIES.length; camIdx = 0; failCount = 0;
@@ -307,7 +307,7 @@ function onYouTubeIframeAPIReady() {
       onReady: e => { log('player listo'); fitCam(); playerReady = true; selectCity(cityIdx); },
       onStateChange: e => {
         log('estado', e.data);
-        if (e.data === YT.PlayerState.PLAYING) { failCount = 0; skips = 0; clearTimeout(coverT); coverT = setTimeout(coverOff, 3000); }
+        if (e.data === YT.PlayerState.PLAYING) { failCount = 0; skips = 0; clearTimeout(coverT); coverT = setTimeout(coverOff, 3000); setTimeout(hideYtControls, 1200); }
         if (e.data === YT.PlayerState.ENDED) nextCam(true);
       },
       onError: e => { log('error', e.data); nextCam(true); }
@@ -330,6 +330,17 @@ function coverOn(id) {
   c.classList.remove('off'); clearTimeout(coverT); coverT = setTimeout(coverOff, 12000);
 }
 function coverOff() { clearTimeout(coverT); $('camCover').classList.add('off'); }
+// Esconde los controles de YouTube: un "puntero" entra al video y sale (la app de la TV lo simula).
+let nudgeT = 0;
+function hideYtControls() {
+  if (!TV || typeof AndroidTV.hoverNudge !== 'function' || Date.now() - nudgeT < 1500) return;
+  nudgeT = Date.now();
+  const el = document.getElementById('player'); if (!el) return;
+  el.style.pointerEvents = 'auto'; AndroidTV.hoverNudge();
+  setTimeout(() => { el.style.pointerEvents = 'none'; }, 350);
+}
+// Y por si vuelven a aparecer (cambio de anuncio a cámara, cortes), repetimos cada 45 s mientras se reproduce
+setInterval(() => { try { if (playerReady && player.getPlayerState() === 1 && !ov) hideYtControls(); } catch {} }, 45000);
 function playCurrent() {
   if (!playerReady || !cams.length) return;
   const want = cams[camIdx];
