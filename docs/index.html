@@ -17,11 +17,16 @@
   #camWrap { position:fixed; inset:0; overflow:hidden; background:#000; }
   /* Sin transform ni recorte: en Fire TV el video va en una capa aparte; debe quedar justo en 0,0 y del tamaño de la pantalla */
   #camWrap iframe, #player { position:absolute; top:0; left:0; width:100vw; height:100vh; pointer-events:none; border:0; transition:opacity .8s ease; }
-  #camWrap.loading iframe { opacity:0; }
-  #loader { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; transition:opacity .6s; }
-  #camWrap:not(.loading) + #loader { opacity:0; }
   .spinner { width:44px; height:44px; border-radius:50%; border:3px solid rgba(255,255,255,.15); border-top-color:var(--accent); animation:spin 1s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
+  /* Pantalla de transición: foto de la cámara mientras arranca, para no ver los controles de YouTube al cargar */
+  #camCover { position:fixed; inset:0; background:#000; overflow:hidden; opacity:1; transition:opacity .9s ease; pointer-events:none; }
+  /* La miniatura es de baja resolución: un leve desenfoque la hace ver como una foto de fondo y no pixelada */
+  #camCover::before { content:""; position:absolute; inset:-30px; background:var(--img, none) center/cover no-repeat; filter:blur(10px) brightness(.85); }
+  #camCover.off { opacity:0; }
+  #camCover .pill { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:flex; align-items:center; gap:.6em;
+    background:rgba(0,0,0,.55); padding:.6em 1.2em; border-radius:999px; font-size:clamp(13px,1.1vw,20px); font-weight:600; letter-spacing:.03em; }
+  #camCover .pill i { width:.6em; height:.6em; border-radius:50%; background:#ef4444; animation:pulse 1.2s ease-in-out infinite; }
   /* Sombra solo arriba y abajo, para leer sin tapar la cámara */
   .shade { position:fixed; inset:0; pointer-events:none; transition:opacity .6s;
     background: linear-gradient(to bottom, rgba(0,0,0,.45) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 62%, rgba(0,0,0,.65) 100%); }
@@ -97,8 +102,8 @@
 </head>
 <body>
 
-<div id="camWrap" class="loading"><div id="player"></div></div>
-<div id="loader"><div class="spinner"></div></div>
+<div id="camWrap"><div id="player"></div></div>
+<div id="camCover"><div class="pill"><i></i>Conectando en vivo…</div></div>
 <div class="shade"></div>
 
 <div class="ui">
@@ -302,7 +307,7 @@ function onYouTubeIframeAPIReady() {
       onReady: e => { log('player listo'); fitCam(); playerReady = true; selectCity(cityIdx); },
       onStateChange: e => {
         log('estado', e.data);
-        if (e.data === YT.PlayerState.PLAYING) { $('camWrap').classList.remove('loading'); failCount = 0; skips = 0; }
+        if (e.data === YT.PlayerState.PLAYING) { failCount = 0; skips = 0; clearTimeout(coverT); coverT = setTimeout(coverOff, 3000); }
         if (e.data === YT.PlayerState.ENDED) nextCam(true);
       },
       onError: e => { log('error', e.data); nextCam(true); }
@@ -316,18 +321,24 @@ function fitCam() {
   Object.assign(el.style, { left:'0px', top:'0px', width: innerWidth + 'px', height: innerHeight + 'px' });
 }
 addEventListener('resize', fitCam);
-let revealT, watchT;
+let revealT, watchT, coverT;
+// Cubre el video con la foto de la cámara hasta que lleva 3 s reproduciéndose (los controles de YouTube ya se ocultaron).
+// Máximo 12 s: si YouTube pone un anuncio, se ve como siempre.
+function coverOn(id) {
+  const c = $('camCover');
+  c.style.setProperty('--img', `url(https://i.ytimg.com/vi/${id}/sddefault_live.jpg)`);
+  c.classList.remove('off'); clearTimeout(coverT); coverT = setTimeout(coverOff, 12000);
+}
+function coverOff() { clearTimeout(coverT); $('camCover').classList.add('off'); }
 function playCurrent() {
   if (!playerReady || !cams.length) return;
   const want = cams[camIdx];
-  $('camWrap').classList.add('loading');
+  coverOn(want);
   player.loadVideoById(want); player.mute(); player.playVideo();
   // Vigilante: si en 40 s la cámara no está reproduciendo (caída o trabada), pasa a la siguiente.
   // 40 s y no menos: YouTube a veces pone 1–2 anuncios de 15 s antes del en vivo.
   clearTimeout(watchT);
   watchT = setTimeout(() => { if (player.getPlayerState() !== 1 && cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 40000);
-  // Mostramos el reproductor enseguida (si YouTube pone un anuncio antes, se ve en vez de pantalla negra)
-  clearTimeout(revealT); revealT = setTimeout(() => $('camWrap').classList.remove('loading'), 1500);
 }
 function nextCam(auto, dir = 1) {
   if (auto) {                                  // falló: se marca, se quita y se prueba la siguiente
