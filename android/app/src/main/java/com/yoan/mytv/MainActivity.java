@@ -69,6 +69,12 @@ public class MainActivity extends Activity {
         setContentView(web);
         hideSystemUi();
 
+        // Cookies del reproductor de YouTube (está incrustado = "de terceros"). Android las bloquea por defecto
+        // y sin ellas YouTube entrega el anuncio pero no la transmisión en vivo (se queda cargando).
+        android.webkit.CookieManager cm = android.webkit.CookieManager.getInstance();
+        cm.setAcceptCookie(true);
+        cm.setAcceptThirdPartyCookies(web, true);
+
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
