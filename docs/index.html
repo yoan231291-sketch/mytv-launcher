@@ -340,6 +340,10 @@ function nextCam(auto, dir = 1) {
   toast(`Cámara ${camIdx + 1} de ${n}`);
   playCurrent();
 }
+// Latido para el vigilante de la app: solo mientras la cámara se reproduce de verdad
+setInterval(() => { try { if (TV && AndroidTV.alive && playerReady && player.getPlayerState() === 1) AndroidTV.alive(); } catch {} }, 20000);
+// Cada 6 h, si nadie está usando la TV (interfaz oculta), recarga para liberar memoria y tomar cambios
+setInterval(() => { if (performance.now() > 6 * 3600e3 && document.body.classList.contains('idle') && !ov) location.reload(); }, 60e3);
 // Al volver de otra app, retoma la cámara
 document.addEventListener('visibilitychange', () => { if (!document.hidden && playerReady) { player.mute(); player.playVideo(); } });
 

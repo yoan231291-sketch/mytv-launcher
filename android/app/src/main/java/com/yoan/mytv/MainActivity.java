@@ -40,6 +40,22 @@ public class MainActivity extends Activity {
     private WebView web;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean offline = false;
+    // Vigilante: la página avisa con AndroidTV.alive() mientras la cámara se reproduce.
+    // Si pasan 2 minutos sin aviso (página trabada, sin cámara), se recarga sola sin caché.
+    private volatile long lastAlive = 0;
+    private static final long STALL_MS = 120_000;
+    private final Runnable watchdog = new Runnable() {
+        @Override public void run() {
+            if (!offline && System.currentTimeMillis() - lastAlive > STALL_MS) {
+                android.util.Log.i("MyTV", "vigilante: la página no responde, recargando");
+                lastAlive = System.currentTimeMillis();
+                web.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+                load();
+                ui.postDelayed(() -> web.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT), 30_000);
+            }
+            ui.postDelayed(this, 30_000);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle b) {
@@ -67,11 +83,7 @@ public class MainActivity extends Activity {
         });
         web.addJavascriptInterface(new Bridge(), "AndroidTV");
         web.setWebViewClient(new WebViewClient() {
-            /** Bloqueador de anuncios: corta las peticiones a servidores de publicidad (solo dentro de MyTV). */
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
-                return AdBlock.isAd(req.getUrl()) ? AdBlock.EMPTY() : null;
-            }
+            // Sin bloqueador de anuncios: desde oct-2026 YouTube detiene el reproductor si se bloquean sus anuncios.
 
             @Override
             public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError err) {
@@ -83,6 +95,7 @@ public class MainActivity extends Activity {
 
     private void load() {
         offline = false;
+        lastAlive = System.currentTimeMillis();
         web.loadUrl(BuildConfig.LAUNCHER_URL + "?v=" + BuildConfig.VERSION_CODE);
     }
 
@@ -118,9 +131,15 @@ public class MainActivity extends Activity {
         return super.dispatchKeyEvent(e);
     }
 
-    @Override protected void onResume() { super.onResume(); hideSystemUi(); web.onResume(); web.resumeTimers(); }
-    // Al abrir otra app, pausamos la cámara para no gastar internet ni CPU
-    @Override protected void onStop() { super.onStop(); web.onPause(); web.pauseTimers(); }
+    @Override protected void onResume() {
+        super.onResume(); hideSystemUi(); web.onResume(); web.resumeTimers();
+        lastAlive = System.currentTimeMillis();           // le damos 2 min para arrancar al volver
+        ui.removeCallbacks(watchdog); ui.postDelayed(watchdog, 30_000);
+    }
+    // Al abrir otra app, pausamos la cámara (y el vigilante) para no gastar internet ni CPU
+    @Override protected void onStop() { super.onStop(); ui.removeCallbacks(watchdog); web.onPause(); web.pauseTimers(); }
+    // Poca memoria: soltamos caché del WebView
+    @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (level >= TRIM_MEMORY_RUNNING_LOW) web.freeMemory(); }
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); if (offline) load(); }
 
     // ---------- Puente JavaScript ↔ Android ----------
@@ -199,6 +218,9 @@ public class MainActivity extends Activity {
                 ui.post(() -> web.evaluateJavascript("window." + callback + " && " + callback + "(" + JSONObject.quote(tag) + "," + json + ")", null));
             }).start();
         }
+
+        /** La página avisa que la cámara se está reproduciendo (ver vigilante). */
+        @JavascriptInterface public void alive() { lastAlive = System.currentTimeMillis(); }
 
         @JavascriptInterface public int version() { return BuildConfig.VERSION_CODE; }
     }
