@@ -34,8 +34,12 @@ final class LiveSearch {
             in.close();
             Matcher m = ITEM.matcher(bos.toString("UTF-8"));
             Set<String> ids = new LinkedHashSet<>();
-            while (m.find() && ids.size() < 8) if (!BAD.matcher(m.group(2)).find()) ids.add(m.group(1));
-            for (String id : ids) out.put(id);
+            while (m.find() && ids.size() < 12) {
+                if (BAD.matcher(m.group(2)).find() || !ids.add(m.group(1))) continue;
+                org.json.JSONObject o = new org.json.JSONObject();
+                o.put("id", m.group(1)); o.put("title", m.group(2));
+                out.put(o);
+            }
         } catch (Exception ignored) { }
         return out;
     }

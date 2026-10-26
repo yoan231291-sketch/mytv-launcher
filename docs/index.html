@@ -274,8 +274,13 @@ function discover() {
   }
   skipCity();
 }
-window.onLiveFound = (tag, ids) => {
-  ids = (ids || []).filter(v => !isBad(v));
+window.onLiveFound = (tag, items) => {
+  // Solo cámaras cuyo título menciona la ciudad (YouTube a veces devuelve otros lugares)
+  const c = CITIES.find(x => x.id === tag) || {};
+  const norm = t => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const kws = (c.kw || [c.name]).map(norm);
+  let ids = (items || []).filter(it => typeof it === 'string' || kws.some(k => norm(it.title).includes(k)))
+                         .map(it => typeof it === 'string' ? it : it.id).filter(v => !isBad(v));
   log('encontradas', tag, ids.join(','));
   if (ids.length) store.set('found:' + tag, ids);
   if (tag !== city().id) return;
