@@ -322,9 +322,10 @@ function playCurrent() {
   const want = cams[camIdx];
   $('camWrap').classList.add('loading');
   player.loadVideoById(want); player.mute(); player.playVideo();
-  // Vigilante: si en 15 s la cámara no está reproduciendo (caída o trabada), pasa a la siguiente
+  // Vigilante: si en 40 s la cámara no está reproduciendo (caída o trabada), pasa a la siguiente.
+  // 40 s y no menos: YouTube a veces pone 1–2 anuncios de 15 s antes del en vivo.
   clearTimeout(watchT);
-  watchT = setTimeout(() => { if (player.getPlayerState() !== 1 && cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 15000);
+  watchT = setTimeout(() => { if (player.getPlayerState() !== 1 && cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 40000);
   // Mostramos el reproductor enseguida (si YouTube pone un anuncio antes, se ve en vez de pantalla negra)
   clearTimeout(revealT); revealT = setTimeout(() => $('camWrap').classList.remove('loading'), 1500);
 }
