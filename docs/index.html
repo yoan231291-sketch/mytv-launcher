@@ -130,7 +130,7 @@ const CITIES = window.CITIES, APPS = window.APPS;
 const store = { get(k,d){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
                 set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 let cityIdx = Math.max(0, CITIES.findIndex(c => c.id === store.get('city','tokyo')));
-let camIdx = 0, failCount = 0, player = null, playerReady = false, cams = [];
+let camIdx = 0, failCount = 0, player = null, playerReady = false, cams = [], bg = false;
 const city = () => CITIES[cityIdx];
 const log = (...a) => console.log('[MyTV]', ...a);
 
@@ -263,6 +263,7 @@ function selectCity(i, announce) {
 let qIdx = 0, skips = 0, pauseT;
 const searched = store.get('searched', {});
 function discover() {
+  if (bg) return;
   const c = city(), queries = c.q || [c.name + ' live cam'];
   const canSearch = TV && typeof AndroidTV.findLive === 'function';
   const recently = searched[c.id] && Date.now() - searched[c.id] < 30 * 60e3 && qIdx === 0;
@@ -313,9 +314,9 @@ function onYouTubeIframeAPIReady() {
       onStateChange: e => {
         log('estado', e.data);
         if (e.data === YT.PlayerState.PLAYING) { failCount = 0; skips = 0; clearTimeout(coverT); coverT = setTimeout(coverOff, 3000); setTimeout(hideYtControls, 1200); }
-        if (e.data === YT.PlayerState.ENDED) nextCam(true);
+        if (e.data === YT.PlayerState.ENDED && !bg) nextCam(true);
       },
-      onError: e => { log('error', e.data); nextCam(true); }
+      onError: e => { log('error', e.data); if (!bg) nextCam(true); }
     }
   });
 }
@@ -345,18 +346,19 @@ function hideYtControls() {
   setTimeout(() => { el.style.pointerEvents = 'none'; }, 350);
 }
 // Y por si vuelven a aparecer (cambio de anuncio a cámara, cortes), repetimos cada 45 s mientras se reproduce
-setInterval(() => { try { if (playerReady && player.getPlayerState() === 1 && !ov) hideYtControls(); } catch {} }, 45000);
+setInterval(() => { try { if (!bg && playerReady && player.getPlayerState() === 1 && !ov) hideYtControls(); } catch {} }, 45000);
 function playCurrent() {
-  if (!playerReady || !cams.length) return;
+  if (bg || !playerReady || !cams.length) return;
   const want = cams[camIdx];
   coverOn(want);
   player.loadVideoById(want); player.mute(); player.playVideo();
   // Vigilante: si en 40 s la cámara no está reproduciendo (caída o trabada), pasa a la siguiente.
   // 40 s y no menos: YouTube a veces pone 1–2 anuncios de 15 s antes del en vivo.
   clearTimeout(watchT);
-  watchT = setTimeout(() => { if (player.getPlayerState() !== 1 && cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 40000);
+  watchT = setTimeout(() => { if (!bg && player.getPlayerState() !== 1 && cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 40000);
 }
 function nextCam(auto, dir = 1) {
+  if (bg) return;
   if (auto) {                                  // falló: se marca, se quita y se prueba la siguiente
     clearTimeout(watchT);
     markBad(cams[camIdx]); cams.splice(camIdx, 1);
@@ -371,9 +373,17 @@ function nextCam(auto, dir = 1) {
 // Latido para el vigilante de la app: solo mientras la cámara se reproduce de verdad
 setInterval(() => { try { if (TV && AndroidTV.alive && playerReady && player.getPlayerState() === 1) AndroidTV.alive(); } catch {} }, 20000);
 // Cada 6 h, si nadie está usando la TV (interfaz oculta), recarga para liberar memoria y tomar cambios
-setInterval(() => { if (performance.now() > 6 * 3600e3 && document.body.classList.contains('idle') && !ov) location.reload(); }, 60e3);
-// Al volver de otra app, retoma la cámara
-document.addEventListener('visibilitychange', () => { if (!document.hidden && playerReady) { player.mute(); player.playVideo(); } });
+setInterval(() => { if (!bg && performance.now() > 6 * 3600e3 && document.body.classList.contains('idle') && !ov) location.reload(); }, 60e3);
+// Segundo plano: con otra app abierta, la cámara se DETIENE (libera el decodificador de video de la TV)
+// y nada se recarga ni se busca hasta volver.
+window.tvBackground = on => {
+  bg = !!on;
+  clearTimeout(watchT); clearTimeout(coverT);
+  if (!playerReady) return;
+  if (bg) { try { player.stopVideo(); } catch {} log('segundo plano: cámara detenida'); }
+  else { log('de vuelta: reanudando'); playCurrent(); }
+};
+document.addEventListener('visibilitychange', () => { if (TV) return; window.tvBackground(document.hidden); });
 
 // ---------- Hora y clima ----------
 const fmt = tz => new Intl.DateTimeFormat('es', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:tz }).format(new Date());
@@ -400,7 +410,7 @@ async function loadWeather() {                       // clima de la ciudad de la
   } catch { camWeather = ''; }
   tickClocks();
 }
-setInterval(loadWeather, 15 * 60 * 1000);
+setInterval(() => { if (!bg) loadWeather(); }, 15 * 60 * 1000);
 
 // Ubicación de la TV: aproximada por internet (sin GPS). Si falla, Indianápolis.
 async function tvLocation() {
@@ -421,7 +431,7 @@ async function loadLocalWeather() {                  // clima de donde está la 
     $('localWeather').textContent = `${cur.is_day ? w[1] : w[2]} ${Math.round(cur.temperature_2m*9/5+32)}°F`;
   } catch { $('localWeather').innerHTML = '&nbsp;'; }
 }
-setInterval(loadLocalWeather, 15 * 60 * 1000);
+setInterval(() => { if (!bg) loadLocalWeather(); }, 15 * 60 * 1000);
 
 // ---------- Ocultar la interfaz sola para ver la cámara ----------
 let idleT;

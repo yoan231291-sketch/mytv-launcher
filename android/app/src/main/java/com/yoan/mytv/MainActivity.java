@@ -146,8 +146,17 @@ public class MainActivity extends Activity {
     }
     // Al abrir otra app, pausamos la cámara (y el vigilante) para no gastar internet ni CPU
     // Al abrir otra app pausamos solo esta vista (NO pauseTimers: es global y en Fire TV a veces no se reanuda → pantalla negra)
-    @Override protected void onStop() { super.onStop(); ui.removeCallbacks(watchdog); web.onPause(); }
-    @Override protected void onStart() { super.onStart(); web.onResume(); web.resumeTimers(); }
+    // Al abrir otra app: la página DETIENE la cámara y sus vigilantes (si no, sigue cargando videos en segundo plano,
+    // le quita el decodificador de video a la otra app y esa app se congela a ratos).
+    @Override protected void onStop() {
+        super.onStop(); ui.removeCallbacks(watchdog);
+        web.evaluateJavascript("window.tvBackground && tvBackground(true)", null);
+        web.onPause();
+    }
+    @Override protected void onStart() {
+        super.onStart(); web.onResume(); web.resumeTimers();
+        web.evaluateJavascript("window.tvBackground && tvBackground(false)", null);
+    }
     // Poca memoria: soltamos caché del WebView
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (level >= TRIM_MEMORY_RUNNING_LOW) web.freeMemory(); }
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); if (offline) load(); }

@@ -67,7 +67,7 @@ public class HomeWatcherService extends AccessibilityService {
         android.app.usage.UsageStatsManager um = (android.app.usage.UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
         if (um == null) return null;
         long now = System.currentTimeMillis();
-        android.app.usage.UsageEvents ev = um.queryEvents(now - 6 * 3600_000L, now);
+        android.app.usage.UsageEvents ev = um.queryEvents(now - 10 * 60_000L, now);
         android.app.usage.UsageEvents.Event e = new android.app.usage.UsageEvents.Event();
         String last = null;
         while (ev.hasNextEvent()) { ev.getNextEvent(e); if (e.getEventType() == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) last = e.getPackageName(); }
