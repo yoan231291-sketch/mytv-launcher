@@ -9,7 +9,6 @@
 window.CITIES = [
   { id:'tokyo', name:'Tokio', spot:'Shinjuku', flag:'🇯🇵', tz:'Asia/Tokyo', lat:35.659, lon:139.7, kw:["tokyo", "shibuya", "shinjuku", "東京", "渋谷", "新宿"], q:["shibuya scramble crossing live camera", "tokyo live camera 24/7"], cams:['6dp-bvQ7RWo'] },
   { id:'ny', name:'Nueva York', spot:'Times Square', flag:'🇺🇸', tz:'America/New_York', lat:40.758, lon:-73.985, kw:["new york", "nyc", "times square", "manhattan", "brooklyn"], q:["times square live cam", "new york city live cam 24/7"], cams:['mkX71WMAmNI','obqnslJKrxc','pv-2pVViNwc'] },
-  { id:'chicago', name:'Chicago', spot:'Skyline', flag:'🇺🇸', tz:'America/Chicago', lat:41.879, lon:-87.636, kw:["chicago"], q:["chicago live cam", "chicago skyline live webcam"], cams:['O0UGT7AT3aw'] },
   { id:'niagara', name:'Cataratas del Niágara', spot:'Horseshoe Falls', flag:'🇨🇦', tz:'America/Toronto', lat:43.079, lon:-79.075, kw:["niagara"], q:["niagara falls live cam"], cams:['7gBzLGlJnwk'] },
   { id:'miami', name:'Miami', spot:'Hollywood Beach', flag:'🇺🇸', tz:'America/New_York', lat:25.79, lon:-80.13, kw:["miami"], q:["miami beach live cam", "miami skyline live cam"], cams:['cmkAbDUEoyA'] },
   { id:'la', name:'Los Ángeles', spot:'Muelle de Santa Mónica', flag:'🇺🇸', tz:'America/Los_Angeles', lat:34.008, lon:-118.499, kw:["los angeles", "venice beach", "santa monica"], q:["santa monica pier live cam", "venice beach live cam"], cams:['v97JpT3ZA0w'] },
