@@ -45,8 +45,37 @@ public class MainActivity extends Activity {
     // Si pasan 2 minutos sin aviso (página trabada, sin cámara), se recarga sola sin caché.
     private volatile long lastAlive = 0;
     private static final long STALL_MS = 120_000;
+    // Reposo: tras 15 min sin tocar el control, MyTV detiene la cámara y deja de forzar la pantalla encendida,
+    // así la TV se apaga sola (y el equipo de sonido Bluetooth se reconecta bien al volver a prenderla).
+    private long idleMs = 15 * 60_000L;
+    private long lastInput = System.currentTimeMillis();
+    private boolean dozing = false;
+    private final Runnable idleCheck = new Runnable() {
+        @Override public void run() {
+            if (!dozing && System.currentTimeMillis() - lastInput > idleMs) doze();
+            ui.postDelayed(this, 20_000);
+        }
+    };
+    private void doze() {
+        dozing = true;
+        android.util.Log.i("MyTV", "reposo: sin actividad, la TV puede apagarse");
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        web.evaluateJavascript("window.tvBackground && tvBackground(true)", null);
+    }
+    private void wake() {
+        if (!dozing) return;
+        dozing = false;
+        android.util.Log.i("MyTV", "reposo: de vuelta");
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        lastAlive = System.currentTimeMillis();
+        web.evaluateJavascript("window.tvBackground && tvBackground(false)", null);
+    }
+    @Override public void onUserInteraction() { super.onUserInteraction(); lastInput = System.currentTimeMillis(); wake(); }
+    private void readIdle(Intent i) { if (i != null && i.hasExtra("idle_sec")) idleMs = i.getIntExtra("idle_sec", 900) * 1000L; }
+
     private final Runnable watchdog = new Runnable() {
         @Override public void run() {
+            if (dozing) { lastAlive = System.currentTimeMillis(); ui.postDelayed(this, 30_000); return; }
             web.resumeTimers(); web.onResume();           // por si la página quedó congelada
             if (!offline && System.currentTimeMillis() - lastAlive > STALL_MS) {
                 android.util.Log.i("MyTV", "vigilante: la página no responde, recargando");
@@ -65,6 +94,7 @@ public class MainActivity extends Activity {
         // Pantalla siempre encendida mientras MyTV está al frente: sin salvapantallas ni suspensión
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         WebView.setWebContentsDebuggingEnabled(true);   // permite revisar la web desde la Mac por ADB
+        readIdle(getIntent());
         web = new WebView(this);
         web.setBackgroundColor(Color.BLACK);
         setContentView(web);
@@ -142,24 +172,26 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume(); hideSystemUi(); web.onResume(); web.resumeTimers();
         lastAlive = System.currentTimeMillis();           // le damos 2 min para arrancar al volver
+        lastInput = System.currentTimeMillis(); wake();   // al prender la TV o volver de otra app cuenta como actividad
         ui.removeCallbacks(watchdog); ui.postDelayed(watchdog, 30_000);
+        ui.removeCallbacks(idleCheck); ui.postDelayed(idleCheck, 20_000);
     }
     // Al abrir otra app, pausamos la cámara (y el vigilante) para no gastar internet ni CPU
     // Al abrir otra app pausamos solo esta vista (NO pauseTimers: es global y en Fire TV a veces no se reanuda → pantalla negra)
     // Al abrir otra app: la página DETIENE la cámara y sus vigilantes (si no, sigue cargando videos en segundo plano,
     // le quita el decodificador de video a la otra app y esa app se congela a ratos).
     @Override protected void onStop() {
-        super.onStop(); ui.removeCallbacks(watchdog);
+        super.onStop(); ui.removeCallbacks(watchdog); ui.removeCallbacks(idleCheck);
         web.evaluateJavascript("window.tvBackground && tvBackground(true)", null);
         web.onPause();
     }
     @Override protected void onStart() {
         super.onStart(); web.onResume(); web.resumeTimers();
-        web.evaluateJavascript("window.tvBackground && tvBackground(false)", null);
+        if (!dozing) web.evaluateJavascript("window.tvBackground && tvBackground(false)", null);
     }
     // Poca memoria: soltamos caché del WebView
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (level >= TRIM_MEMORY_RUNNING_LOW) web.freeMemory(); }
-    @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); if (offline) load(); }
+    @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); readIdle(i); if (offline) load(); }
 
     // ---------- Puente JavaScript ↔ Android ----------
     class Bridge {
