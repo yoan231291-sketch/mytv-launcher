@@ -39,6 +39,20 @@ import java.util.Set;
 public class MainActivity extends Activity {
 
     private WebView web;
+    // Para el control remoto del teléfono
+    static volatile MainActivity current;
+    static volatile String pendingJs;            // orden que llegó antes de que la página cargara
+    private volatile boolean front = false;
+    boolean isFront() { return front; }
+    void remoteKey(final int code) {
+        ui.post(() -> {
+            onUserInteraction();
+            long t = android.os.SystemClock.uptimeMillis();
+            web.dispatchKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_DOWN, code, 0));
+            web.dispatchKeyEvent(new KeyEvent(t, t, KeyEvent.ACTION_UP, code, 0));
+        });
+    }
+    void remoteJs(final String js) { ui.post(() -> { onUserInteraction(); web.evaluateJavascript(js, null); }); }
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean offline = false;
     // Vigilante: la página avisa con AndroidTV.alive() mientras la cámara se reproduce.
@@ -94,6 +108,7 @@ public class MainActivity extends Activity {
         // Pantalla siempre encendida mientras MyTV está al frente: sin salvapantallas ni suspensión
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         WebView.setWebContentsDebuggingEnabled(true);   // permite revisar la web desde la Mac por ADB
+        current = this;
         readIdle(getIntent());
         web = new WebView(this);
         web.setBackgroundColor(Color.BLACK);
@@ -123,6 +138,11 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             // Sin bloqueador de anuncios: desde oct-2026 YouTube detiene el reproductor si se bloquean sus anuncios.
 
+            @Override
+            public void onPageFinished(WebView v, String url) {
+                final String js = pendingJs;
+                if (js != null) { pendingJs = null; ui.postDelayed(() -> web.evaluateJavascript(js, null), 3000); }
+            }
             @Override
             public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError err) {
                 if (req.isForMainFrame()) showOffline();
@@ -170,7 +190,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onResume() {
-        super.onResume(); hideSystemUi(); web.onResume(); web.resumeTimers();
+        super.onResume(); front = true; hideSystemUi(); web.onResume(); web.resumeTimers();
         lastAlive = System.currentTimeMillis();           // le damos 2 min para arrancar al volver
         lastInput = System.currentTimeMillis(); wake();   // al prender la TV o volver de otra app cuenta como actividad
         ui.removeCallbacks(watchdog); ui.postDelayed(watchdog, 30_000);
@@ -180,6 +200,8 @@ public class MainActivity extends Activity {
     // Al abrir otra app pausamos solo esta vista (NO pauseTimers: es global y en Fire TV a veces no se reanuda → pantalla negra)
     // Al abrir otra app: la página DETIENE la cámara y sus vigilantes (si no, sigue cargando videos en segundo plano,
     // le quita el decodificador de video a la otra app y esa app se congela a ratos).
+    @Override protected void onPause() { super.onPause(); front = false; }
+    @Override protected void onDestroy() { if (current == this) current = null; super.onDestroy(); }
     @Override protected void onStop() {
         super.onStop(); ui.removeCallbacks(watchdog); ui.removeCallbacks(idleCheck);
         web.evaluateJavascript("window.tvBackground && tvBackground(true)", null);
@@ -197,20 +219,7 @@ public class MainActivity extends Activity {
     class Bridge {
         /** Abre la primera app instalada de una lista "pkg1,pkg2". */
         @JavascriptInterface
-        public boolean launch(String pkgs) {
-            PackageManager pm = getPackageManager();
-            for (String p : pkgs.split(",")) {
-                Intent i = pm.getLeanbackLaunchIntentForPackage(p.trim());
-                if (i == null) i = pm.getLaunchIntentForPackage(p.trim());
-                if (i != null) {
-                    HomeWatcherService.allowAmazonHomeFor(5000);
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(i);
-                    return true;
-                }
-            }
-            return false;
-        }
+        public boolean launch(String pkgs) { return Apps.launch(MainActivity.this, pkgs); }
 
         @JavascriptInterface
         public void openSettings() {
@@ -234,29 +243,11 @@ public class MainActivity extends Activity {
 
         /** Lista de apps instaladas (nombre, paquete, ícono en base64). */
         @JavascriptInterface
-        public String getApps() {
-            PackageManager pm = getPackageManager();
-            JSONArray out = new JSONArray();
-            Set<String> seen = new HashSet<>();
-            seen.add(getPackageName());
-            for (String cat : new String[]{Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER}) {
-                List<ResolveInfo> list = pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(cat), 0);
-                for (ResolveInfo r : list) {
-                    String pkg = r.activityInfo.packageName;
-                    if (!seen.add(pkg)) continue;
-                    try {
-                        JSONObject o = new JSONObject();
-                        o.put("pkg", pkg);
-                        o.put("label", r.loadLabel(pm).toString());
-                        Drawable d = r.activityInfo.applicationInfo.loadBanner(pm);
-                        if (d == null) d = r.loadIcon(pm);
-                        o.put("icon", toDataUrl(d));
-                        out.put(o);
-                    } catch (Exception ignored) { }
-                }
-            }
-            return out.toString();
-        }
+        public String getApps() { return Apps.list(MainActivity.this); }
+
+        /** Dirección del control remoto para el teléfono (se muestra en Ajustes como enlace y QR). */
+        @JavascriptInterface
+        public String remoteUrl() { return RemoteServer.url(MainActivity.this); }
 
         /**
          * Busca en YouTube transmisiones EN VIVO para una ciudad, desde el internet de la casa (YouTube no lo bloquea).
@@ -299,7 +290,7 @@ public class MainActivity extends Activity {
         e.recycle();
     }
 
-    private static String toDataUrl(Drawable d) {
+    static String toDataUrl(Drawable d) {
         if (d == null) return "";
         int w = Math.max(1, Math.min(320, d.getIntrinsicWidth() > 0 ? d.getIntrinsicWidth() : 160));
         int h = Math.max(1, Math.min(180, d.getIntrinsicHeight() > 0 ? d.getIntrinsicHeight() : 160));

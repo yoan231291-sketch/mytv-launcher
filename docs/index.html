@@ -37,7 +37,8 @@
   body.idle .ui, body.idle .shade { opacity:0; }
 
   .top { position:absolute; top:4.5vh; left:4vw; right:4vw; display:flex; justify-content:space-between; align-items:flex-start; text-shadow:0 1px 8px rgba(0,0,0,.6); }
-  .live { display:flex; align-items:center; gap:.7em; font-size:clamp(13px,1.15vw,22px); font-weight:600; letter-spacing:.04em; }
+  .live { display:none !important; }   /* interfaz limpia: la ciudad solo aparece al cambiarla */
+  .live-old { display:flex; align-items:center; gap:.7em; font-size:clamp(13px,1.15vw,22px); font-weight:600; letter-spacing:.04em; }
   .live .dot { width:.6em; height:.6em; border-radius:50%; background:#ef4444; box-shadow:0 0 10px #ef4444; animation:pulse 2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity:.35; } }
   .live .spot { font-weight:400; color:var(--muted); }
@@ -119,6 +120,18 @@
 
 <div class="overlay" id="ovCities"><h2>Elige una ciudad</h2><div class="grid" id="gridCities" style="--cols:4"></div></div>
 <div class="overlay" id="ovSettings"><h2>Ajustes</h2><div class="grid" id="gridSettings" style="--cols:4"></div></div>
+<div class="overlay" id="ovRemote"><h2>Control desde el teléfono</h2>
+  <div style="display:flex;gap:4vw;align-items:center">
+    <div id="qr" style="background:#fff;padding:16px;border-radius:16px;width:clamp(180px,18vw,320px);aspect-ratio:1"></div>
+    <div style="font-size:clamp(14px,1.4vw,26px);line-height:1.6;max-width:44ch">
+      <p style="margin:0 0 .6em">1. Conecta el teléfono al <b>mismo Wi-Fi</b> que la TV.</p>
+      <p style="margin:0 0 .6em">2. Apunta la cámara del iPhone a este código, o abre:</p>
+      <p id="remoteUrl" style="margin:0 0 .8em;font-weight:700;word-break:break-all"></p>
+      <p style="margin:0;color:var(--muted)">En Safari: Compartir → <b>Agregar a pantalla de inicio</b> y lo tendrás como una app.</p>
+      <p style="margin:1.2em 0 0;color:var(--muted);font-size:.8em">Atrás para cerrar</p>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="ovApps"><h2>Todas las apps</h2><div class="grid" id="gridApps" style="--cols:6"></div></div>
 
 <div id="toast"></div>
@@ -146,10 +159,12 @@ const ICON = {
   info:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.6" r=".9" fill="#fff"/></svg>',
   sliders:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
   person:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>',
   access:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="4.5" r="1.6"/><path d="M5 8l7 1.5L19 8M12 9.5V15M12 15l-3.5 6M12 15l3.5 6"/></svg>',
 };
 const S = 'com.amazon.tv.settings.v2/.tv.';
 const SETTINGS = [
+  { name:'Control desde el teléfono', icon:'phone', target:'remote' },
   { name:'Red',                  icon:'wifi',    target:S+'network.NetworkActivity' },
   { name:'Pantalla y sonido',    icon:'tv',      target:S+'display_sounds.DisplayAndSoundsActivity' },
   { name:'Aplicaciones',         icon:'apps',    target:S+'applications.ApplicationsActivity' },
@@ -198,7 +213,7 @@ function activate(d) {
 }
 
 // ---------- Rejillas (ciudades / todas las apps / ajustes) ----------
-const OV = { cities:'ovCities', apps:'ovApps', settings:'ovSettings' }, GRID = { cities:'gridCities', apps:'gridApps', settings:'gridSettings' };
+const OV = { cities:'ovCities', apps:'ovApps', settings:'ovSettings', remote:'ovRemote' }, GRID = { cities:'gridCities', apps:'gridApps', settings:'gridSettings', remote:'qr' };
 let ov = null, ovIdx = 0, ovItems = [];
 function openOverlay(kind) {
   if (kind === 'apps') {
@@ -233,11 +248,26 @@ function pickOverlay() {
   if (kind === 'apps') AndroidTV.launch(item.pkg);
   else if (kind === 'settings') {
     if (!TV) return toast('Disponible en la TV');
+    if (item.target === 'remote') return showRemote();
     const ok = typeof AndroidTV.openSetting === 'function' && AndroidTV.openSetting(item.target);
     if (!ok) AndroidTV.openSettings();             // versión anterior de la app o pantalla no disponible
   }
   else selectCity(ovIdx, true);
 }
+
+// Pantalla con el QR y el enlace del control remoto
+function showRemote() {
+  const url = typeof AndroidTV.remoteUrl === 'function' ? AndroidTV.remoteUrl() : '';
+  if (!url) return toast('Actualiza la app de MyTV para usar el control desde el teléfono');
+  $('remoteUrl').textContent = url.replace('http://', '');
+  const draw = () => { $('qr').innerHTML = ''; new QRCode($('qr'), { text:url, width:300, height:300, correctLevel:QRCode.CorrectLevel.M });
+    const im = $('qr').querySelector('img,canvas'); if (im) { im.style.width = '100%'; im.style.height = 'auto'; } };
+  if (window.QRCode) draw();
+  else { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sc.onload = draw; document.head.appendChild(sc); }
+  ov = 'remote'; ovItems = []; $('ovRemote').classList.add('open'); wake();
+}
+// Desde el control del teléfono: cambiar a una ciudad por su id
+window.selectCityById = id => { const i = CITIES.findIndex(c => c.id === id); if (i >= 0) { closeOverlay(); wake(); selectCity(i, true); } };
 
 // ---------- Ciudad y cámara (con auto-reparación) ----------
 // Cámaras que fallaron: se evitan durante 12 h (los enlaces de YouTube en vivo cambian cada pocos días)
@@ -480,7 +510,6 @@ document.addEventListener('mousemove', wake);
 renderDock();
 $('cityName').textContent = city().name; $('citySpot').textContent = '· ' + city().spot;
 tickClocks(); loadWeather(); loadLocalWeather(); wake();
-setTimeout(() => toast('◄ ► apps   ·   ▲ ▼ ciudad   ·   ⏩ cámara'), 1500);
 const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
 </script>
 </body>
