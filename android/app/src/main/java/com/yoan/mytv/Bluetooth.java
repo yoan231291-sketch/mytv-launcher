@@ -88,6 +88,9 @@ final class Bluetooth {
 
     private static void reconnect(Context c) {
         String last = c.getSharedPreferences("bt", Context.MODE_PRIVATE).getString("last", null);
+        if (last == null) {   // aún no hay favorito: el primer equipo de sonido emparejado
+            try { JSONArray l = list(); if (l.length() > 0) last = l.getJSONObject(0).getString("addr"); } catch (Exception ignored) { }
+        }
         BluetoothA2dp p = a2dp;
         if (last == null) return;
         if (p == null) { init(c); return; }
