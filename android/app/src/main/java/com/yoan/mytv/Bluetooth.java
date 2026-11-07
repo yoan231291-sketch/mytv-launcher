@@ -66,6 +66,41 @@ final class Bluetooth {
         }
     }
 
+    // ---- Reconexión automática del equipo de sonido al prender la TV ----
+    private static final android.os.Handler H = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    /** Pantalla apagada: recuerda qué equipo de audio estaba conectado. */
+    static void onScreenOff(Context c) {
+        H.removeCallbacksAndMessages(null);
+        BluetoothA2dp p = a2dp;
+        if (p == null) return;
+        try {
+            for (BluetoothDevice d : p.getConnectedDevices())
+                c.getSharedPreferences("bt", Context.MODE_PRIVATE).edit().putString("last", d.getAddress()).apply();
+        } catch (Exception ignored) { }
+    }
+
+    /** Pantalla encendida: si no hay audio Bluetooth conectado, reconecta el último (varios intentos: el equipo puede tardar en despertar). */
+    static void onScreenOn(final Context c) {
+        H.removeCallbacksAndMessages(null);
+        for (long ms : new long[]{ 4000, 12000, 30000, 60000 }) H.postDelayed(() -> reconnect(c), ms);
+    }
+
+    private static void reconnect(Context c) {
+        String last = c.getSharedPreferences("bt", Context.MODE_PRIVATE).getString("last", null);
+        BluetoothA2dp p = a2dp;
+        if (last == null) return;
+        if (p == null) { init(c); return; }
+        try {
+            if (!p.getConnectedDevices().isEmpty()) { H.removeCallbacksAndMessages(null); return; }   // ya hay audio conectado
+            android.util.Log.i("MyTV", "Bluetooth: reconectando equipo de sonido " + last);
+            connect(last, false);
+        } catch (Exception ignored) { }
+    }
+
+    /** Recuerda el equipo elegido desde el teléfono. */
+    static void remember(Context c, String addr) { c.getSharedPreferences("bt", Context.MODE_PRIVATE).edit().putString("last", addr).apply(); }
+
     /** Abre la pantalla de Bluetooth de Fire TV (Controles y dispositivos Bluetooth). */
     static void openSettings(Context c) {
         HomeWatcherService.allowAmazonHomeFor(8000);

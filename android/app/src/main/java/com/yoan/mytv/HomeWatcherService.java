@@ -88,10 +88,20 @@ public class HomeWatcherService extends AccessibilityService {
         }
     };
 
+    // Encendido/apagado de pantalla: reconectar el equipo de sonido Bluetooth al prender la TV
+    private final android.content.BroadcastReceiver screen = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(android.content.Context c, Intent i) {
+            if (Intent.ACTION_SCREEN_ON.equals(i.getAction())) Bluetooth.onScreenOn(HomeWatcherService.this);
+            else Bluetooth.onScreenOff(HomeWatcherService.this);
+        }
+    };
+    private boolean screenRegistered = false;
+
     private RemoteServer remote;
     @Override protected void onServiceConnected() { super.onServiceConnected();
-        if (remote == null) { remote = new RemoteServer(this); remote.start(); Bluetooth.init(this); } h.removeCallbacks(poll); h.postDelayed(poll, 4000); }
-    @Override public void onDestroy() { if (remote != null) remote.stop(); h.removeCallbacks(poll); super.onDestroy(); }
+        if (remote == null) { remote = new RemoteServer(this); remote.start(); Bluetooth.init(this); }
+        if (!screenRegistered) { android.content.IntentFilter f = new android.content.IntentFilter(Intent.ACTION_SCREEN_ON); f.addAction(Intent.ACTION_SCREEN_OFF); registerReceiver(screen, f); screenRegistered = true; } h.removeCallbacks(poll); h.postDelayed(poll, 4000); }
+    @Override public void onDestroy() { if (screenRegistered) { try { unregisterReceiver(screen); } catch (Exception ignored) { } } if (remote != null) remote.stop(); h.removeCallbacks(poll); super.onDestroy(); }
 
     @Override public void onInterrupt() { }
 }

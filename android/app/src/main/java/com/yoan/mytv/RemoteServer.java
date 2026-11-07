@@ -148,6 +148,7 @@ final class RemoteServer {
             case "apps": openMyTV(); if (a != null) a.remoteJs("tvKey('menu')"); break;
             case "bt": case "btoff": {
                 String err = v == null ? "Falta el equipo" : Bluetooth.connect(v, k.equals("btoff"));
+                if (err == null && k.equals("bt")) Bluetooth.remember(svc, v);
                 if (err != null) r.put("ok", false).put("msg", err);
                 break;
             }
