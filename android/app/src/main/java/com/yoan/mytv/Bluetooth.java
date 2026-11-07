@@ -35,8 +35,8 @@ final class Bluetooth {
         try {
             for (BluetoothDevice d : ad.getBondedDevices()) {
                 BluetoothClass bc = d.getBluetoothClass();
-                boolean audio = bc != null && (bc.getMajorDeviceClass() == BluetoothClass.Device.Major.AUDIO_VIDEO || bc.hasService(BluetoothClass.Service.AUDIO));
-                if (!audio) continue;   // solo equipos de sonido / audífonos (el control de la TV no aparece)
+                if (bc != null && (bc.getMajorDeviceClass() == BluetoothClass.Device.Major.PERIPHERAL
+                        || bc.getMajorDeviceClass() == BluetoothClass.Device.Major.PHONE)) continue;   // sin controles, teclados ni teléfonos
                 BluetoothA2dp p = a2dp;
                 boolean on = p != null && p.getConnectionState(d) == BluetoothProfile.STATE_CONNECTED;
                 out.put(new JSONObject().put("name", d.getName() == null ? d.getAddress() : d.getName())
