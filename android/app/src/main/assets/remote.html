@@ -51,6 +51,14 @@
   .pill:active { background:#2c2c2e; }
   #toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom, 0px) + 20px); transform:translateX(-50%); background:#2c2c2e; color:var(--fg); padding:10px 16px; border-radius:12px; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none; max-width:90vw; text-align:center; }
   #toast.show { opacity:1; }
+  #bt { display:flex; flex-direction:column; gap:8px; }
+  .btdev { display:flex; align-items:center; gap:12px; border:0; border-radius:14px; background:#1c1c1e; color:var(--fg); padding:14px; font-size:15px; text-align:left; width:100%; }
+  .btdev:active { background:#2c2c2e; }
+  .btdev svg { width:22px; height:22px; flex:none; color:var(--muted); }
+  .btdev span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .btdev em { font-style:normal; font-size:13px; color:var(--muted); }
+  .btdev.on svg, .btdev.on em { color:var(--accent); }
+  .btdev.busy em { color:#ffd60a; }
   #err { display:none; background:#2c1414; color:#ff9f9a; padding:14px; border-radius:14px; margin-bottom:14px; font-size:14px; line-height:1.4; }
 </style>
 </head>
@@ -81,6 +89,10 @@
   <button class="pill" data-k="cam">📷 Otra cámara</button>
   <button class="pill" data-k="mute">🔇 Silenciar</button>
 </div>
+
+<h2>Bluetooth</h2>
+<div id="bt"><button class="btdev" id="btload"><span>Buscando equipos…</span></button></div>
+<div class="wide" style="grid-template-columns:1fr"><button class="pill" data-k="btsettings">⚙︎ Ajustes de Bluetooth de la TV</button></div>
 
 <h2>Apps</h2>
 <div id="apps"></div>
@@ -159,6 +171,28 @@ async function loadApps() {
   } catch { setOnline(false); }
 }
 loadApps();
+
+// Bluetooth: equipos de sonido emparejados con la TV; tocar uno lo conecta (tocar el conectado lo desconecta)
+const BT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>';
+async function loadBt() {
+  try {
+    const r = await fetch(`/api/bt?t=${encodeURIComponent(token || '')}`, { cache:'no-store' });
+    if (!r.ok) return;
+    const { devices } = await r.json(); setOnline(true);
+    const box = $('bt'); box.innerHTML = '';
+    if (!devices.length) { box.innerHTML = '<button class="btdev"><span>No hay equipos de sonido emparejados. Usa “Ajustes de Bluetooth” para emparejar uno.</span></button>'; return; }
+    devices.forEach(d => {
+      const b = document.createElement('button'); b.className = 'btdev' + (d.on ? ' on' : '');
+      b.innerHTML = `${BT_ICON}<span></span><em>${d.on ? 'Conectado' : 'Conectar'}</em>`;
+      b.querySelector('span').textContent = d.name;
+      b.onclick = async () => { b.classList.add('busy'); b.querySelector('em').textContent = d.on ? 'Desconectando…' : 'Conectando…';
+        await send(d.on ? 'btoff' : 'bt', d.addr); setTimeout(loadBt, 3500); setTimeout(loadBt, 8000); };
+      box.appendChild(b);
+    });
+  } catch { setOnline(false); }
+}
+loadBt();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadBt(); });
 </script>
 </body>
 </html>

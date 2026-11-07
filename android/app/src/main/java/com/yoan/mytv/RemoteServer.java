@@ -101,6 +101,7 @@ final class RemoteServer {
 
             JSONObject res = new JSONObject();
             if (path.equals("/api/apps")) res.put("apps", new JSONArray(Apps.list(svc)));
+            else if (path.equals("/api/bt")) res.put("devices", Bluetooth.list());
             else if (path.equals("/api/cmd")) res = command(q.get("k"), q.get("v"));
             else { send(out, 404, "text/plain", "no".getBytes()); return; }
             send(out, 200, "application/json; charset=utf-8", res.toString().getBytes("UTF-8"));
@@ -145,6 +146,12 @@ final class RemoteServer {
                 break;
             case "cam": openMyTV(); if (a != null) a.remoteJs("tvKey('ff')"); break;
             case "apps": openMyTV(); if (a != null) a.remoteJs("tvKey('menu')"); break;
+            case "bt": case "btoff": {
+                String err = v == null ? "Falta el equipo" : Bluetooth.connect(v, k.equals("btoff"));
+                if (err != null) r.put("ok", false).put("msg", err);
+                break;
+            }
+            case "btsettings": Bluetooth.openSettings(svc); break;
             default: r.put("ok", false);
         }
         return r;

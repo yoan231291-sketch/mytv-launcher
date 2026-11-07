@@ -90,7 +90,7 @@ public class HomeWatcherService extends AccessibilityService {
 
     private RemoteServer remote;
     @Override protected void onServiceConnected() { super.onServiceConnected();
-        if (remote == null) { remote = new RemoteServer(this); remote.start(); } h.removeCallbacks(poll); h.postDelayed(poll, 4000); }
+        if (remote == null) { remote = new RemoteServer(this); remote.start(); Bluetooth.init(this); } h.removeCallbacks(poll); h.postDelayed(poll, 4000); }
     @Override public void onDestroy() { if (remote != null) remote.stop(); h.removeCallbacks(poll); super.onDestroy(); }
 
     @Override public void onInterrupt() { }
