@@ -84,6 +84,14 @@ public class MainActivity extends Activity {
         lastAlive = System.currentTimeMillis();
         web.evaluateJavascript("window.tvBackground && tvBackground(false)", null);
     }
+    // Al apagarse la pantalla (control, temporizador o reposo) soltamos "pantalla encendida" y paramos la cámara:
+    // así nada de MyTV impide que la TV entre en apagado profundo (y el Bluetooth se suelta bien).
+    private final android.content.BroadcastReceiver screenOff = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(android.content.Context c, Intent i) {
+            if (Intent.ACTION_SCREEN_ON.equals(i.getAction())) { lastInput = System.currentTimeMillis(); if (front) wake(); }
+            else if (!dozing) doze();
+        }
+    };
     @Override public void onUserInteraction() { super.onUserInteraction(); lastInput = System.currentTimeMillis(); wake(); }
     private void readIdle(Intent i) { if (i != null && i.hasExtra("idle_sec")) idleMs = i.getIntExtra("idle_sec", 900) * 1000L; }
 
@@ -149,6 +157,8 @@ public class MainActivity extends Activity {
             }
         });
         load();
+        android.content.IntentFilter f = new android.content.IntentFilter(Intent.ACTION_SCREEN_OFF); f.addAction(Intent.ACTION_SCREEN_ON);
+        registerReceiver(screenOff, f);
     }
 
     private void load() {
@@ -192,7 +202,8 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume(); front = true; hideSystemUi(); web.onResume(); web.resumeTimers();
         lastAlive = System.currentTimeMillis();           // le damos 2 min para arrancar al volver
-        lastInput = System.currentTimeMillis(); wake();   // al prender la TV o volver de otra app cuenta como actividad
+        android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+        if (pm == null || pm.isInteractive()) { lastInput = System.currentTimeMillis(); wake(); }   // al prender la TV o volver de otra app cuenta como actividad
         ui.removeCallbacks(watchdog); ui.postDelayed(watchdog, 30_000);
         ui.removeCallbacks(idleCheck); ui.postDelayed(idleCheck, 20_000);
     }
@@ -201,7 +212,7 @@ public class MainActivity extends Activity {
     // Al abrir otra app: la página DETIENE la cámara y sus vigilantes (si no, sigue cargando videos en segundo plano,
     // le quita el decodificador de video a la otra app y esa app se congela a ratos).
     @Override protected void onPause() { super.onPause(); front = false; }
-    @Override protected void onDestroy() { if (current == this) current = null; super.onDestroy(); }
+    @Override protected void onDestroy() { if (current == this) current = null; try { unregisterReceiver(screenOff); } catch (Exception ignored) { } super.onDestroy(); }
     @Override protected void onStop() {
         super.onStop(); ui.removeCallbacks(watchdog); ui.removeCallbacks(idleCheck);
         web.evaluateJavascript("window.tvBackground && tvBackground(true)", null);
