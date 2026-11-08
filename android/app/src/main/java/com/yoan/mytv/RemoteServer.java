@@ -144,6 +144,7 @@ final class RemoteServer {
         else if (path.equals("/api/bt")) res.put("devices", Bluetooth.list());
         else if (path.equals("/api/state")) res.put("on", screenOn()).put("keys", RemoteIme.current != null ? "listo" : "sin teclado")
                 .put("draw", drawUrl(svc)).put("online", onlineUrl(svc)).put("lan", url(svc));
+        else if (path.equals("/api/cmd") && "voice".equals(q.get("k"))) res = voice(q.get("v"), q.get("c"));
         else if (path.equals("/api/cmd")) res = command(q.get("k"), q.get("v"));
         else if (path.equals("/api/now")) res = NowPlaying.info(svc, screenOn());
         else if (path.equals("/api/shot")) {           // foto de la pantalla (solo si está prendida)
@@ -154,6 +155,32 @@ final class RemoteServer {
         else return null;
         return res;
     }
+
+    /** Orden de voz (botón Alexa del teléfono): se interpreta y se ejecuta aquí, con lo que ya tiene la TV. */
+    private JSONObject voice(String text, String cities) throws Exception {
+        JSONObject r = new JSONObject().put("ok", true);
+        if (text == null || text.trim().isEmpty()) return r.put("ok", false).put("msg", "No escuché nada");
+        Voice.Plan p = Voice.plan(text, Apps.labels(svc), cities);
+        if (p.said == null) return r.put("ok", false).put("msg", "No entendí: “" + text + "”. Prueba: “pon Netflix”, “busca recetas en YouTube”, “sube el volumen”.");
+        for (String[] c : p.cmds) {
+            String k = c[0], v = c[1];
+            if (k.equals("power_on")) { if (!screenOn()) command("power", null); }
+            else if (k.equals("power_off")) { if (screenOn()) command("power", null); }
+            else if (k.equals("text_yt")) { youtubeSearch(v); }
+            else command(k, v.isEmpty() ? null : v);
+            if (p.cmds.length > 1) Thread.sleep(120);
+        }
+        return r.put("msg", p.said);
+    }
+
+    private void youtubeSearch(String t) {
+        if (!screenOn()) command0Power();
+        Intent yi = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("youtube://search?query=" + android.net.Uri.encode(t))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        String pkg = Apps.installed(svc, "com.amazon.firetv.youtube,com.google.android.youtube.tv");
+        if (pkg != null) yi.setPackage(pkg);
+        try { svc.startActivity(yi); } catch (Exception ignored) { }
+    }
+    private void command0Power() { try { command("power", null); Thread.sleep(800); } catch (Exception ignored) { } }
 
     /** Ejecuta una orden del teléfono. */
     private JSONObject command(String k, String v) throws Exception {

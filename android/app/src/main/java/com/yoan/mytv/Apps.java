@@ -40,7 +40,12 @@ final class Apps {
     }
 
     /** JSON con las apps que se pueden abrir: [{pkg, label, icon(data:url)}]. */
-    static String list(Context c) {
+    static String list(Context c) { return list(c, true); }
+
+    /** Igual que list() pero sin íconos (rápido; para las órdenes de voz). */
+    static String labels(Context c) { return list(c, false); }
+
+    static String list(Context c, boolean icons) {
         PackageManager pm = c.getPackageManager();
         JSONArray out = new JSONArray();
         Set<String> seen = new HashSet<>();
@@ -54,9 +59,11 @@ final class Apps {
                     JSONObject o = new JSONObject();
                     o.put("pkg", pkg);
                     o.put("label", r.loadLabel(pm).toString());
-                    Drawable d = r.activityInfo.applicationInfo.loadBanner(pm);
-                    if (d == null) d = r.loadIcon(pm);
-                    o.put("icon", MainActivity.toDataUrl(d));
+                    if (icons) {
+                        Drawable d = r.activityInfo.applicationInfo.loadBanner(pm);
+                        if (d == null) d = r.loadIcon(pm);
+                        o.put("icon", MainActivity.toDataUrl(d));
+                    }
                     out.put(o);
                 } catch (Exception ignored) { }
             }

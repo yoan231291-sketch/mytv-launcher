@@ -127,7 +127,8 @@
   <button class="pill" data-k="mute">Silenciar</button>
 </div>
 
-<button class="pill alexa" id="alexa" aria-label="Alexa"><span class="ring"></span>Alexa</button>
+<button class="pill alexa" id="alexa" aria-label="Hablarle a la TV"><span class="ring"></span><span id="alexaTxt">Alexa · toca y habla</span></button>
+<form id="voiceForm" class="type" hidden><input id="voiceIn" type="text" placeholder="Toca 🎤 del teclado y di la orden" autocomplete="off" enterkeyhint="send"><button class="pill" type="submit">Enviar</button></form>
 <a class="pill drawlink" id="onlineLink" href="#" target="_blank" rel="noopener" hidden>Control desde cualquier lugar (sin el Wi-Fi de la casa)</a>
 <a class="pill drawlink" id="drawLink" href="#" target="_blank" rel="noopener">Dibujar en la TV (desde cualquier lugar)</a>
 <form id="typeForm" class="type"><input id="typeIn" type="text" placeholder="Escribir en la TV" autocomplete="off" autocapitalize="off" enterkeyhint="send"><button class="pill" type="submit">Enviar</button></form>
@@ -326,13 +327,31 @@ $('power').onclick = async () => {
   await send('power'); toast(wasOn ? 'Apagando la TV' : 'Prendiendo la TV');
   setTimeout(() => { b.classList.remove('busy'); loadState(); loadBt(); }, 2500);
 };
-// Alexa: Amazon no deja que otra app active la escucha de la TV. Este botón abre la app de Alexa del teléfono
-// (funciona desde cualquier lugar): di por ejemplo "Alexa, pon Netflix en Living room TV".
+// Botón "Alexa": hablas en el teléfono y la TV hace la orden con lo que ya tiene (tu cuenta de la TV, sus apps).
+// No necesita la app de Alexa. Ej.: "pon Netflix", "busca recetas en YouTube", "sube el volumen", "apaga la tele".
+const CITY_CSV = (window.CITIES || []).map(c => c.id + ':' + c.name).join(';');
+async function sayToTv(text) {
+  text = (text || '').trim(); if (!text) return;
+  $('alexaTxt').textContent = '“' + text + '”';
+  try { const j = await api('cmd', { k:'voice', v:text, c:CITY_CSV }); setOnline(true); toast(j.msg || (j.ok ? 'Listo' : 'No entendí')); }
+  catch { setOnline(false); }
+  setTimeout(() => { $('alexaTxt').textContent = 'Alexa · toca y habla'; $('alexa').classList.remove('listening'); }, 2500);
+}
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
 $('alexa').onclick = () => {
-  const b = $('alexa'); b.classList.add('listening'); setTimeout(() => b.classList.remove('listening'), 2500);
-  const t0 = Date.now(); location.href = 'alexa://';
-  setTimeout(() => { if (!document.hidden && Date.now() - t0 < 2500) { toast('Instala la app Amazon Alexa para hablarle a la TV'); location.href = 'https://apps.apple.com/app/amazon-alexa/id944011620'; } }, 1500);
+  const b = $('alexa');
+  if (!SR) { $('voiceForm').hidden = false; $('voiceIn').focus(); toast('Toca el micrófono del teclado y di la orden'); return; }
+  if (rec) { rec.stop(); return; }
+  rec = new SR(); rec.lang = /^en/i.test(navigator.language) ? 'en-US' : 'es-US'; rec.interimResults = true; rec.maxAlternatives = 1;
+  let last = '';
+  rec.onstart = () => { b.classList.add('listening'); $('alexaTxt').textContent = 'Te escucho…'; buzz(); };
+  rec.onresult = e => { last = [...e.results].map(r => r[0].transcript).join(' '); $('alexaTxt').textContent = '“' + last + '”'; };
+  rec.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { $('voiceForm').hidden = false; $('voiceIn').focus(); toast('Permite el micrófono, o usa el micrófono del teclado'); } };
+  rec.onend = () => { rec = null; b.classList.remove('listening'); if (last) sayToTv(last); else $('alexaTxt').textContent = 'Alexa · toca y habla'; };
+  try { rec.start(); } catch { rec = null; $('voiceForm').hidden = false; $('voiceIn').focus(); }
 };
+$('voiceForm').onsubmit = e => { e.preventDefault(); sayToTv($('voiceIn').value); $('voiceIn').value = ''; };
 $('typeForm').onsubmit = async e => { e.preventDefault(); const v = $('typeIn').value.trim(); if (!v) return; await send('text', v); $('typeIn').value = ''; toast('Escrito en la TV'); };
 // Pantallita: qué se ve en la TV ahora (foto cada 10 s mientras miras el control) y si está prendida
 async function loadNow() {
