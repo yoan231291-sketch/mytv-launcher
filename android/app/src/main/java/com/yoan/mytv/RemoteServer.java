@@ -145,6 +145,12 @@ final class RemoteServer {
         else if (path.equals("/api/state")) res.put("on", screenOn()).put("keys", RemoteIme.current != null ? "listo" : "sin teclado")
                 .put("draw", drawUrl(svc)).put("online", onlineUrl(svc)).put("lan", url(svc));
         else if (path.equals("/api/cmd")) res = command(q.get("k"), q.get("v"));
+        else if (path.equals("/api/now")) res = NowPlaying.info(svc, screenOn());
+        else if (path.equals("/api/shot")) {           // foto de la pantalla (solo si está prendida)
+            if (!screenOn()) res.put("off", true);
+            else if (ScreenCap.projection == null) { ScreenCap.ask(svc); res.put("wait", true); }
+            else { String img = ScreenCap.shot(); if (img != null) res.put("img", img); else res.put("wait", true); }
+        }
         else return null;
         return res;
     }

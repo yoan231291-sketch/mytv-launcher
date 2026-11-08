@@ -67,6 +67,15 @@
             <meta-data android:name="android.view.im" android:resource="@xml/remote_ime" />
         </service>
 
+        <!-- Foto de la pantalla para el control del teléfono -->
+        <activity android:name=".ScreenCap$Ask" android:exported="false" android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" android:noHistory="false" />
+        <!-- Leer qué se está reproduciendo (título) -->
+        <service android:name=".NowPlaying$Listener" android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
+
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
         </receiver>

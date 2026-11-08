@@ -76,6 +76,16 @@
   .type input { flex:1; min-width:0; border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:14px; font-size:16px; }
   .type .pill { flex:none; padding:14px 18px; }
   #keysNote { display:none; margin-top:12px; background:var(--warn-bg); color:var(--warn-fg); padding:12px 14px; border-radius:14px; font-size:14px; line-height:1.4; }
+  #now { margin-bottom:14px; background:var(--key); border-radius:18px; overflow:hidden; box-shadow:var(--shadow); }
+  #now .screen { position:relative; aspect-ratio:16/9; background:#0b0d12; }
+  #now img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; }
+  #now img.ok { display:block; }
+  #now #shotMsg { position:absolute; inset:0; display:grid; place-items:center; color:#8b93a3; font-size:13px; text-align:center; padding:0 20px; }
+  #now .info { display:flex; flex-direction:column; gap:2px; padding:10px 14px 12px; min-width:0; }
+  #now .info b { font-size:15px; display:flex; align-items:center; gap:8px; }
+  #now .info b::before { content:""; width:9px; height:9px; border-radius:50%; background:var(--faint); flex:none; }
+  #now.on .info b::before { background:var(--ok); }
+  #now .info span { font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #err { display:none; background:var(--err-bg); color:var(--err-fg); padding:14px; border-radius:14px; margin-bottom:14px; font-size:14px; line-height:1.4; }
   .themes { display:flex; gap:12px; flex-wrap:wrap; }
   .sw { width:44px; height:44px; border-radius:50%; border:2px solid var(--line); padding:0; position:relative; }
@@ -87,6 +97,11 @@
 <header><h1>MyTV</h1><div id="status"><i></i><span>Conectado</span></div>
   <button id="power" aria-label="Prender o apagar la TV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg></button></header>
 <div id="err"></div>
+
+<section id="now" class="off">
+  <div class="screen"><img id="shot" alt="Lo que se ve en la TV"><span id="shotMsg">Cargando la pantalla…</span></div>
+  <div class="info"><b id="nowState">Buscando la TV…</b><span id="nowWhat"></span></div>
+</section>
 
 <div id="pad" aria-label="Panel táctil: desliza para moverte, toca para elegir">
   <span class="arrow a-up">▴</span><span class="arrow a-down">▾</span><span class="arrow a-left">◂</span><span class="arrow a-right">▸</span>
@@ -303,8 +318,11 @@ async function loadState() {
     if (j.keys === 'esperando permiso') { n.textContent = 'Falta un paso en la TV: aparece “¿Permitir depuración?”. Marca “Permitir siempre” y acepta. Es solo una vez y hace que las flechas funcionen dentro de YouTube, Netflix y cualquier app.'; n.style.display = 'block'; }
     else n.style.display = 'none'; } catch { setOnline(false); $('power').classList.remove('on'); }
 }
+let offArmed = 0;
 $('power').onclick = async () => {
-  const b = $('power'); b.classList.add('busy'); const wasOn = b.classList.contains('on');
+  const b = $('power'); const wasOn = b.classList.contains('on');
+  if (wasOn && Date.now() - offArmed > 3000) { offArmed = Date.now(); toast('Toca otra vez para APAGAR la TV'); buzz(); return; }   // evita apagarla sin querer
+  offArmed = 0; b.classList.add('busy');
   await send('power'); toast(wasOn ? 'Apagando la TV' : 'Prendiendo la TV');
   setTimeout(() => { b.classList.remove('busy'); loadState(); loadBt(); }, 2500);
 };
@@ -316,6 +334,31 @@ $('alexa').onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 2500) { toast('Instala la app Amazon Alexa para hablarle a la TV'); location.href = 'https://apps.apple.com/app/amazon-alexa/id944011620'; } }, 1500);
 };
 $('typeForm').onsubmit = async e => { e.preventDefault(); const v = $('typeIn').value.trim(); if (!v) return; await send('text', v); $('typeIn').value = ''; toast('Escrito en la TV'); };
+// Pantallita: qué se ve en la TV ahora (foto cada 10 s mientras miras el control) y si está prendida
+async function loadNow() {
+  try {
+    const j = await api('now'); const box = $('now');
+    box.classList.toggle('on', !!j.on); box.classList.toggle('off', !j.on); $('power').classList.toggle('on', !!j.on);
+    $('nowState').textContent = j.on ? 'TV prendida' + (j.app ? ' · ' + j.app : '') : 'TV apagada';
+    $('nowWhat').textContent = j.on && j.title ? (j.playing ? '▶ ' : '❚❚ ') + j.title + (j.sub ? ' — ' + j.sub : '') : (j.on ? '' : 'Tócala con el botón de encendido para prenderla');
+    if (!j.on) { $('shot').classList.remove('ok'); $('shotMsg').textContent = 'La TV está apagada'; }
+  } catch { $('nowState').textContent = 'Sin conexión con la TV'; $('nowWhat').textContent = ''; }
+}
+let shotBusy = false;
+async function loadShot() {
+  if (shotBusy || document.hidden || !$('now').classList.contains('on')) return;
+  shotBusy = true;
+  try {
+    const j = await api('shot');
+    if (j.img) { $('shot').src = j.img; $('shot').classList.add('ok'); $('shotMsg').textContent = ''; }
+    else if (j.wait) $('shotMsg').textContent = 'Preparando la vista de la pantalla…';
+  } catch {} finally { shotBusy = false; }
+}
+loadNow().then(loadShot);
+setInterval(() => { if (!document.hidden) loadNow(); }, 6000);
+setInterval(loadShot, 10000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadNow().then(loadShot); });
+
 loadState(); setInterval(() => { if (!document.hidden) loadState(); }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadState(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadBt(); });
