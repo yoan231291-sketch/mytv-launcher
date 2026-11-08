@@ -33,17 +33,9 @@ def search(q):
 
 
 def probe(v):
-    h = get(f"https://www.youtube.com/watch?v={v}")
-    m = re.search(r'ytInitialPlayerResponse\s*=\s*(\{.+?\});(?:var|</script>)', h, re.S)
-    if not m: return None
-    try: j = json.loads(m.group(1))
-    except Exception: return None
-    vd, ps = j.get("videoDetails", {}), j.get("playabilityStatus", {})
-    if ps.get("status") != "OK" or not vd.get("isLive") or not ps.get("playableInEmbed"): return None
-    fm = (j.get("streamingData", {}) or {})
-    hs = [f.get("height", 0) for f in fm.get("adaptiveFormats", [])]
-    return dict(v=v, title=vd.get("title", "")[:90], ch=vd.get("author", ""), views=int(vd.get("viewCount") or 0),
-                ads=bool(j.get("adPlacements")) or bool(j.get("playerAds")), hd=max(hs) if hs else 0)
+    """Sin pedir la página del video (YouTube la limita): oEmbed dice si existe y se puede incrustar. Lo demás lo mide verify_cams.js reproduciendo."""
+    h = get("https://www.youtube.com/oembed?format=json&url=" + urllib.parse.quote(f"https://www.youtube.com/watch?v={v}"))
+    return dict(v=v, ads=False, hd=0, views=0) if h else None
 
 
 def city(row):
@@ -59,7 +51,7 @@ def city(row):
     out = []
     for v, t, ch in cands[:12]:
         p = probe(v)
-        if p: out.append(p)
+        if p: p.update(title=t, ch=ch); out.append(p)
     print(cid, len(out), "sin anuncios:", sum(not x["ads"] for x in out), flush=True)
     return cid, out
 
