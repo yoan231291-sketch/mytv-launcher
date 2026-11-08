@@ -66,8 +66,12 @@ def city(row):
 if __name__ == "__main__":
     outf = sys.argv[1] if len(sys.argv) > 1 else "candidates.json"
     only = set(sys.argv[2].split(",")) if len(sys.argv) > 2 else None
-    rows = [r for r in CATALOG if not only or r[0] in only]
-    with ThreadPoolExecutor(4) as ex:
-        res = dict(ex.map(city, rows))
-    json.dump(res, open(outf, "w"), ensure_ascii=False, indent=1)
+    try: res = json.load(open(outf))
+    except Exception: res = {}
+    rows = [r for r in CATALOG if (not only or r[0] in only) and r[0] not in res]
+    def run(row):
+        cid, out = city(row); res[cid] = out
+        json.dump(res, open(outf, "w"), ensure_ascii=False, indent=1)   # guarda al terminar cada ciudad (se puede reanudar)
+    with ThreadPoolExecutor(10) as ex:
+        list(ex.map(run, rows))
     print("FIN", sum(1 for v in res.values() if any(not x["ads"] for x in v)), "ciudades con al menos 1 sin anuncios de", len(res))
