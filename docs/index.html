@@ -474,6 +474,7 @@ function buildMosaic() {
   const m = document.createElement('div'); m.id = 'mosaic'; document.body.appendChild(m);
   const used = [];
   for (let i = 0; i < MOSAIC_N; i++) { const c = mosaicPick(used); if (!c) break; used.push(c.id); mosaicCell(m, i, c); }
+  if (mosaicPlayers[1]) mosaicPlayers[1].since -= ROTATE_MS / 2;   // escalonado: una cambia cada 1.5 min
 }
 // Esconde los controles de YouTube de una celda: el "puntero" pasa por encima del video y sale
 function hideCell(slot) {
@@ -484,6 +485,27 @@ function hideCell(slot) {
   setTimeout(() => { f.style.pointerEvents = 'none'; }, 350);
 }
 setInterval(() => { if (mosaic && !bg && !ov) mosaicPlayers.forEach((p, i) => setTimeout(() => hideCell(i), i * 1000)); }, 40000);
+// Rotación: cada cámara dura como máximo 3 minutos y se cambia sola por otra ciudad (sin salir de la vista).
+// Las celdas se turnan (una cada minuto y medio) para que nunca cambien las dos a la vez.
+const ROTATE_MS = 3 * 60e3;
+setInterval(() => {
+  if (!mosaic || bg) return;
+  const now = Date.now();
+  const due = mosaicPlayers.map((p, i) => [p, i]).filter(([p]) => p && now - p.since >= ROTATE_MS).sort((a, b) => a[0].since - b[0].since)[0];
+  if (due) { const [p, i] = due; mosaicStart = (mosaicStart + 1) % CITIES.length; rotateCell(i); }
+}, 10000);
+function rotateCell(slot) {
+  const m = $('mosaic'); const old = mosaicPlayers[slot]; if (!m || !old) return;
+  clearInterval(old.watch); try { old.player.destroy(); } catch {}
+  const shown = mosaicPlayers.filter(Boolean).map(p => p.city);
+  // la siguiente ciudad que no esté en pantalla (empezando después de la que se va)
+  const from = CITIES.findIndex(c => c.id === old.city);
+  for (let k = 1; k <= CITIES.length; k++) {
+    const c = CITIES[(from + k * 1 + slot) % CITIES.length];
+    if (!shown.includes(c.id) && !mosaicSkip.has(c.id) && buildCams(c).length) { mosaicCell(m, slot, c); return; }
+  }
+  mosaicCell(m, slot, CITIES.find(c => c.id === old.city));
+}
 window.toggleMosaic = on => {
   mosaic = on === undefined ? !mosaic : !!on;
   try { localStorage.setItem('mytv-mosaic', mosaic ? '1' : '0'); } catch {}
