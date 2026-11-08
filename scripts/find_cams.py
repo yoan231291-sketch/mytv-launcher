@@ -10,6 +10,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from catalog import CATALOG
+import os
+if os.environ.get('CAT2'):
+    from catalog2 import CATALOG2 as CATALOG
 
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
       "Accept-Language": "en-US,en;q=0.9", "Cookie": "CONSENT=YES+1; SOCS=CAI"}
@@ -18,7 +21,7 @@ BAD = re.compile(r"pre-?recorded|top live|webcam tour|cams? around the world|\b\
 
 def get(url, t=25):
     for a in range(5):
-        time.sleep(1.2)   # ritmo suave: YouTube limita (429) si se pide muy rápido
+        time.sleep(0.8)   # ritmo suave: YouTube limita (429) si se pide muy rápido
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=t) as r:
                 return r.read().decode("utf-8", "ignore")
@@ -33,6 +36,10 @@ def search(q):
 
 
 def probe(v):
+    return dict(v=v, ads=False, hd=0, views=0)   # la comprobación real es la reproducción (verify_cams.js)
+
+
+def _probe_old(v):
     """Sin pedir la página del video (YouTube la limita): oEmbed dice si existe y se puede incrustar. Lo demás lo mide verify_cams.js reproduciendo."""
     h = get("https://www.youtube.com/oembed?format=json&url=" + urllib.parse.quote(f"https://www.youtube.com/watch?v={v}"))
     return dict(v=v, ads=False, hd=0, views=0) if h else None
@@ -43,7 +50,7 @@ def city(row):
     kwre = re.compile(kw, re.I)
     seen, cands = set(), []
     k = kw.split("|")[0]
-    for query in (q, q + " 24/7", f"{k} live cam", f"{k} webcam 24/7", f"{k} skyline live camera", f"{k} cámara en vivo", f"{k} live stream city view"):
+    for query in (q, f"{k} live cam 24/7", f"{k} webcam live stream", f"{k} city view live"):
         for v, t, ch in search(query):
             if v in seen or BAD.search(t) or not kwre.search(t + " " + ch): continue
             seen.add(v); cands.append((v, t, ch))
