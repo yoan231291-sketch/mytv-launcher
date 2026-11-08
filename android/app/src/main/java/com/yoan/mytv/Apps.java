@@ -31,6 +31,14 @@ final class Apps {
         return false;
     }
 
+    /** Primer paquete instalado de una lista "pkg1,pkg2" (o null). */
+    static String installed(Context c, String pkgs) {
+        for (String p : pkgs.split(",")) {
+            try { c.getPackageManager().getPackageInfo(p.trim(), 0); return p.trim(); } catch (Exception ignored) { }
+        }
+        return null;
+    }
+
     /** JSON con las apps que se pueden abrir: [{pkg, label, icon(data:url)}]. */
     static String list(Context c) {
         PackageManager pm = c.getPackageManager();

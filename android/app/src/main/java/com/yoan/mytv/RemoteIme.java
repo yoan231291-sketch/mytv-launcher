@@ -37,6 +37,8 @@ public class RemoteIme extends InputMethodService {
         return a && b;
     }
 
+    static boolean hasEditor() { RemoteIme me = current; return me != null && me.hasEditor && me.getCurrentInputConnection() != null; }
+
     /** Escribe texto: en un campo de texto real lo pega; si no, lo teclea letra por letra. */
     static boolean text(String s) {
         RemoteIme me = current; if (me == null) return false;

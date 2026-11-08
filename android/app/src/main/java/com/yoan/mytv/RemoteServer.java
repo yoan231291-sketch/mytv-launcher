@@ -166,8 +166,17 @@ final class RemoteServer {
             case "text": {   // escribir en buscadores (YouTube, Netflix…): solo letras sin acentos, números y signos simples
                 String t = v == null ? "" : java.text.Normalizer.normalize(v, java.text.Normalizer.Form.NFD).replaceAll("[^A-Za-z0-9 .,@_\\-]", "");
                 if (t.isEmpty()) { r.put("ok", false).put("msg", "Nada que escribir"); break; }
-                if (front) { a.remoteJs("1"); }
-                if (!RemoteIme.text(t)) r.put("ok", false).put("msg", "Primero abre el buscador de la app en la TV");
+                String fg = null; try { fg = svc.foreground(); } catch (Exception ignored) { }
+                boolean yt = front || (fg != null && fg.contains("youtube"));
+                if (RemoteIme.hasEditor()) { RemoteIme.text(t); }                 // hay un campo de texto abierto: se escribe ahí
+                else if (yt) {                                                       // YouTube (o MyTV): abre la búsqueda con el texto ya puesto
+                    Intent yi = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("youtube://search?q=" + android.net.Uri.encode(t)))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    String pkg = Apps.installed(svc, "com.amazon.firetv.youtube,com.google.android.youtube.tv");
+                    if (pkg != null) yi.setPackage(pkg);
+                    try { svc.startActivity(yi); r.put("msg", "Buscando en YouTube"); } catch (Exception e) { r.put("ok", false).put("msg", "No se pudo abrir YouTube"); }
+                }
+                else if (!RemoteIme.text(t)) r.put("ok", false).put("msg", "Primero abre el buscador de la app en la TV");
                 break;
             }
             case "volup": am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI); break;

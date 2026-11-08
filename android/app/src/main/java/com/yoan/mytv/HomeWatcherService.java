@@ -63,7 +63,7 @@ public class HomeWatcherService extends AccessibilityService {
     // Revisión cada 4 s con las estadísticas de uso (permiso concedido por ADB al instalar):
     // si el inicio de Amazon quedó al frente sin generar evento (p. ej. al encender la TV), volvemos a MyTV.
     private final Handler h = new Handler(Looper.getMainLooper());
-    private String foreground() {
+    String foreground() {
         android.app.usage.UsageStatsManager um = (android.app.usage.UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
         if (um == null) return null;
         long now = System.currentTimeMillis();
