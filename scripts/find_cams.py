@@ -17,12 +17,13 @@ BAD = re.compile(r"pre-?recorded|top live|webcam tour|cams? around the world|\b\
 
 
 def get(url, t=25):
-    for a in range(3):
+    for a in range(5):
+        time.sleep(1.2)   # ritmo suave: YouTube limita (429) si se pide muy rápido
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=t) as r:
                 return r.read().decode("utf-8", "ignore")
-        except Exception:
-            time.sleep(2 + a * 3)
+        except Exception as e:
+            time.sleep(20 * (a + 1) if '429' in str(e) else 3)
     return ""
 
 
@@ -70,8 +71,10 @@ if __name__ == "__main__":
     except Exception: res = {}
     rows = [r for r in CATALOG if (not only or r[0] in only) and r[0] not in res]
     def run(row):
-        cid, out = city(row); res[cid] = out
+        cid, out = city(row)
+        if not out: return   # vacío = probablemente limitado; se reintenta al reanudar
+        res[cid] = out
         json.dump(res, open(outf, "w"), ensure_ascii=False, indent=1)   # guarda al terminar cada ciudad (se puede reanudar)
-    with ThreadPoolExecutor(10) as ex:
+    with ThreadPoolExecutor(2) as ex:
         list(ex.map(run, rows))
     print("FIN", sum(1 for v in res.values() if any(not x["ads"] for x in v)), "ciudades con al menos 1 sin anuncios de", len(res))
