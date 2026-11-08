@@ -66,6 +66,7 @@ final class RemoteServer {
         }
         return k;
     }
+    static String onlineUrl(Context c) { return "https://yoan231291-sketch.github.io/mytv-launcher/remote.html?k=" + drawKey(c); }
     static String drawUrl(Context c) { return "https://yoan231291-sketch.github.io/mytv-launcher/draw.html#k=" + drawKey(c); }
 
     static String ip() {
@@ -79,9 +80,12 @@ final class RemoteServer {
         return "0.0.0.0";
     }
 
+    private CloudLink cloud;
+
     void start() {
         if (running) return;
         running = true;
+        cloud = new CloudLink(drawKey(svc), this::api);   // control desde cualquier lugar (internet)
         new Thread(() -> {
             try {
                 server = new ServerSocket(PORT);
@@ -93,7 +97,7 @@ final class RemoteServer {
         }, "mytv-remote").start();
     }
 
-    void stop() { running = false; try { if (server != null) server.close(); } catch (Exception ignored) { } }
+    void stop() { running = false; if (cloud != null) cloud.stop(); try { if (server != null) server.close(); } catch (Exception ignored) { } }
 
     private void handle(Socket s) {
         try (Socket sock = s) {
@@ -127,14 +131,22 @@ final class RemoteServer {
             if (path.equals("/manifest.json")) { send(out, 200, "application/manifest+json", asset("remote-manifest.json")); return; }
             if (!token.equals(q.get("t"))) { send(out, 403, "application/json", "{\"ok\":false,\"msg\":\"Clave incorrecta\"}".getBytes("UTF-8")); return; }
 
-            JSONObject res = new JSONObject();
-            if (path.equals("/api/apps")) res.put("apps", new JSONArray(Apps.list(svc)));
-            else if (path.equals("/api/bt")) res.put("devices", Bluetooth.list());
-            else if (path.equals("/api/state")) res.put("on", screenOn()).put("keys", RemoteIme.current != null ? "listo" : "sin teclado").put("draw", drawUrl(svc));
-            else if (path.equals("/api/cmd")) res = command(q.get("k"), q.get("v"));
-            else { send(out, 404, "text/plain", "no".getBytes()); return; }
+            JSONObject res = api(path, q);
+            if (res == null) { send(out, 404, "text/plain", "no".getBytes()); return; }
             send(out, 200, "application/json; charset=utf-8", res.toString().getBytes("UTF-8"));
         } catch (Exception ignored) { }
+    }
+
+    /** Respuestas del control (iguales en la casa por Wi-Fi y desde internet). null = no existe. */
+    JSONObject api(String path, Map<String, String> q) throws Exception {
+        JSONObject res = new JSONObject();
+        if (path.equals("/api/apps")) res.put("apps", new JSONArray(Apps.list(svc)));
+        else if (path.equals("/api/bt")) res.put("devices", Bluetooth.list());
+        else if (path.equals("/api/state")) res.put("on", screenOn()).put("keys", RemoteIme.current != null ? "listo" : "sin teclado")
+                .put("draw", drawUrl(svc)).put("online", onlineUrl(svc)).put("lan", url(svc));
+        else if (path.equals("/api/cmd")) res = command(q.get("k"), q.get("v"));
+        else return null;
+        return res;
     }
 
     /** Ejecuta una orden del teléfono. */
@@ -212,6 +224,10 @@ final class RemoteServer {
                     r.put("on", !ok);
                     if (!ok) r.put("ok", false).put("msg", "No se pudo apagar desde aquí");
                 }
+                break;
+            case "alexa":   // igual que el botón de Alexa del control: Alexa escucha (por el micrófono de la TV)
+                try { svc.startActivity(new Intent(Intent.ACTION_ASSIST).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+                catch (Exception e) { r.put("ok", false).put("msg", "Alexa no respondió"); }
                 break;
             case "btsettings": Bluetooth.openSettings(svc); break;
             default: r.put("ok", false);

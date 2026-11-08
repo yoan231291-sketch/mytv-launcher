@@ -66,6 +66,11 @@
   .btdev em { font-style:normal; font-size:13px; color:var(--muted); }
   .btdev.on svg, .btdev.on em { color:var(--accent); }
   .btdev.busy em { color:var(--warn-fg); }
+  .alexa { width:100%; margin-top:12px; display:flex; align-items:center; justify-content:center; gap:10px; font-weight:600; }
+  .alexa .ring { width:18px; height:18px; border-radius:50%; border:3px solid #00caff; box-sizing:border-box; }
+  .alexa.listening .ring { animation:alx 1s ease-in-out infinite; }
+  @keyframes alx { 50% { box-shadow:0 0 0 6px rgba(0,202,255,.25); } }
+  .drawlink[hidden] { display:none !important; }
   .drawlink { display:block; margin-top:12px; text-align:center; text-decoration:none; background:var(--fg); color:var(--bg); }
   .type { display:flex; gap:8px; margin-top:12px; }
   .type input { flex:1; min-width:0; border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:14px; font-size:16px; }
@@ -107,6 +112,8 @@
   <button class="pill" data-k="mute">Silenciar</button>
 </div>
 
+<button class="pill alexa" id="alexa" aria-label="Alexa"><span class="ring"></span>Alexa</button>
+<a class="pill drawlink" id="onlineLink" href="#" target="_blank" rel="noopener" hidden>Control desde cualquier lugar (sin el Wi-Fi de la casa)</a>
 <a class="pill drawlink" id="drawLink" href="#" target="_blank" rel="noopener">Dibujar en la TV (desde cualquier lugar)</a>
 <form id="typeForm" class="type"><input id="typeIn" type="text" placeholder="Escribir en la TV" autocomplete="off" autocapitalize="off" enterkeyhint="send"><button class="pill" type="submit">Enviar</button></form>
 <div id="keysNote"></div>
@@ -162,20 +169,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // La clave viene en el enlace (?t=...) y se guarda para la próxima vez
 const qs = new URLSearchParams(location.search);
-let token = (location.pathname.match(/^\/k\/([a-z0-9]+)/) || [])[1] || qs.get('t');
+const ONLINE = location.protocol === 'https:';   // abierto desde internet (GitHub Pages) = funciona fuera de casa
+let token = ONLINE ? ((location.hash.match(/k=([a-z0-9]+)/) || [])[1] || qs.get('k')) : ((location.pathname.match(/^\/k\/([a-z0-9]+)/) || [])[1] || qs.get('t'));
 try { if (token) localStorage.setItem('mytv-t', token); else token = localStorage.getItem('mytv-t'); } catch {}
 const $ = id => document.getElementById(id);
 let tT; const toast = m => { $('toast').textContent = m; $('toast').classList.add('show'); clearTimeout(tT); tT = setTimeout(() => $('toast').classList.remove('show'), 2400); };
 const buzz = () => { try { navigator.vibrate && navigator.vibrate(12); } catch {} };
 
+// Pide algo a la TV. En casa: directo por Wi-Fi. Fuera: por el canal en vivo (la TV responde por el mismo canal).
+let cloud = null; const waiting = new Map(), ICONS = {};
+function cloudReady() {
+  if (cloud) return cloud;
+  cloud = new Promise((ok, bad) => {
+    const go = () => {
+      const sb = supabase.createClient('https://eythwqbeatakgsvjhrbl.supabase.co', 'sb_publishable_CPOL_oOUFhvdJ1sSDqK_Kg_46iP00Cj');
+      const ch = sb.channel('mytv-remote-' + token, { config: { broadcast: { self:false } } });
+      ch.on('broadcast', { event:'res' }, ({ payload }) => { const w = waiting.get(payload.id); if (w) { waiting.delete(payload.id); w(payload.body); } });
+      ch.on('broadcast', { event:'icon' }, ({ payload }) => { ICONS[payload.pkg] = payload.icon; document.querySelectorAll(`[data-pkg="${payload.pkg}"]`).forEach(b => { if (payload.icon) b.innerHTML = `<img src="${payload.icon}" alt="">`; }); });
+      ch.subscribe(st => { if (st === 'SUBSCRIBED') ok(ch); else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { cloud = null; bad(new Error(st)); } });
+    };
+    if (window.supabase) go(); else { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js'; sc.onload = go; sc.onerror = () => { cloud = null; bad(new Error('sin internet')); }; document.head.appendChild(sc); }
+  });
+  return cloud;
+}
+async function api(path, params = {}) {
+  if (!ONLINE) {
+    const qp = new URLSearchParams({ t: token || '', ...params });
+    const r = await fetch(`/api/${path}?${qp}`, { cache:'no-store' });
+    if (r.status === 403) { showErr('Este enlace no tiene la clave. Pide el enlace correcto a quien lo configuró (en la TV: Ajustes → Control desde el teléfono) y vuelve a agregarlo a la pantalla de inicio.'); throw new Error('clave'); }
+    return r.json();
+  }
+  if (!token) { showErr('Este enlace no tiene la clave. Ábrelo desde el control de la casa: botón “Control desde cualquier lugar”.'); throw new Error('clave'); }
+  const ch = await cloudReady();
+  const id = Math.random().toString(36).slice(2, 10);
+  return new Promise((ok, bad) => {
+    const t = setTimeout(() => { waiting.delete(id); bad(new Error('sin respuesta')); }, 7000);
+    waiting.set(id, body => { clearTimeout(t); ok(body); });
+    ch.send({ type:'broadcast', event:'req', payload:{ id, path:'/api/' + path, q: params } });
+  });
+}
 async function send(k, v) {
   buzz();
   try {
-    const r = await fetch(`/api/cmd?t=${encodeURIComponent(token || '')}&k=${k}${v ? '&v=' + encodeURIComponent(v) : ''}`, { cache:'no-store' });
-    const j = await r.json(); setOnline(true);
-    if (!j.ok && j.msg) toast(j.msg);
-    if (r.status === 403) showErr('Este enlace no tiene la clave. Pide el enlace correcto a quien lo configuró (en la TV: Ajustes → Control desde el teléfono) y vuelve a agregarlo a la pantalla de inicio.');
-  } catch { setOnline(false); }
+    const j = await api('cmd', v ? { k, v } : { k }); setOnline(true);
+    if (j.msg) toast(j.msg);
+  } catch (e) { if (e.message !== 'clave') setOnline(false); }
 }
 function setOnline(on) { $('status').classList.toggle('off', !on); $('status').querySelector('span').textContent = on ? 'Conectado' : 'Sin conexión con la TV'; }
 function showErr(m) { $('err').textContent = m; $('err').style.display = 'block'; }
@@ -223,13 +261,11 @@ pad.addEventListener('pointerup', e => {
 // Apps: primero las del menú de MyTV, luego "Más apps"
 async function loadApps() {
   try {
-    const r = await fetch(`/api/apps?t=${encodeURIComponent(token || '')}`, { cache:'no-store' });
-    if (r.status === 403) return showErr('Este enlace no tiene la clave. Pide el enlace correcto a quien lo configuró (en la TV: Ajustes → Control desde el teléfono) y vuelve a agregarlo a la pantalla de inicio.');
-    const { apps } = await r.json(); setOnline(true);
+    const { apps } = await api('apps'); setOnline(true);
     const fav = (window.APPS || []).map(a => apps.find(x => a.pkgs.includes(x.pkg))).filter(Boolean);
     const rest = apps.filter(a => !fav.includes(a) && !/launcher|settings|screensaver|profile|ssm|vizzini|documentsui|downloads/.test(a.pkg));
-    const add = (a, parent) => { const b = document.createElement('button'); b.className = 'app';
-      b.innerHTML = a.icon ? `<img src="${a.icon}" alt="${a.label}">` : a.label; b.onclick = () => { send('app', a.pkg); toast('Abriendo ' + a.label); }; parent.appendChild(b); };
+    const add = (a, parent) => { const b = document.createElement('button'); b.className = 'app'; b.dataset.pkg = a.pkg;
+      const ic = a.icon || ICONS[a.pkg]; b.innerHTML = ic ? `<img src="${ic}" alt="${a.label}">` : a.label; b.onclick = () => { send('app', a.pkg); toast('Abriendo ' + a.label); }; parent.appendChild(b); };
     fav.forEach(a => add(a, $('apps')));
     if (rest.length) {
       const more = document.createElement('button'); more.className = 'app'; more.textContent = 'Más apps…';
@@ -243,9 +279,7 @@ loadApps();
 const BT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>';
 async function loadBt() {
   try {
-    const r = await fetch(`/api/bt?t=${encodeURIComponent(token || '')}`, { cache:'no-store' });
-    if (!r.ok) return;
-    const { devices } = await r.json(); setOnline(true);
+    const { devices } = await api('bt'); setOnline(true);
     const box = $('bt'); box.innerHTML = '';
     if (!devices.length) { box.innerHTML = '<button class="btdev"><span>No hay equipos de sonido emparejados. Usa “Ajustes de Bluetooth” para emparejar uno.</span></button>'; return; }
     devices.forEach(d => {
@@ -262,9 +296,9 @@ loadBt();
 
 // Encendido: verde = TV prendida. Tocar prende o apaga la TV.
 async function loadState() {
-  try { const r = await fetch(`/api/state?t=${encodeURIComponent(token || '')}`, { cache:'no-store' }); if (!r.ok) return;
-    const j = await r.json(); setOnline(true); $('power').classList.toggle('on', !!j.on);
+  try { const j = await api('state'); setOnline(true); $('power').classList.toggle('on', !!j.on);
     if (j.draw) $('drawLink').href = j.draw;
+    if (j.online && !ONLINE) { $('onlineLink').href = j.online; $('onlineLink').hidden = false; }
     const n = $('keysNote');
     if (j.keys === 'esperando permiso') { n.textContent = 'Falta un paso en la TV: aparece “¿Permitir depuración?”. Marca “Permitir siempre” y acepta. Es solo una vez y hace que las flechas funcionen dentro de YouTube, Netflix y cualquier app.'; n.style.display = 'block'; }
     else n.style.display = 'none'; } catch { setOnline(false); $('power').classList.remove('on'); }
@@ -274,6 +308,8 @@ $('power').onclick = async () => {
   await send('power'); toast(wasOn ? 'Apagando la TV' : 'Prendiendo la TV');
   setTimeout(() => { b.classList.remove('busy'); loadState(); loadBt(); }, 2500);
 };
+$('alexa').onclick = async () => { const b = $('alexa'); b.classList.add('listening'); await send('alexa');
+  toast('Alexa te escucha por el micrófono de la TV: habla cerca de la TV'); setTimeout(() => b.classList.remove('listening'), 6000); };
 $('typeForm').onsubmit = async e => { e.preventDefault(); const v = $('typeIn').value.trim(); if (!v) return; await send('text', v); $('typeIn').value = ''; toast('Escrito en la TV'); };
 loadState(); setInterval(() => { if (!document.hidden) loadState(); }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadState(); });
