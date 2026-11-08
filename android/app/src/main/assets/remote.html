@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="MyTV">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#eef1f5">
 <link rel="manifest" href="manifest.json">
 <title>MyTV Remote</title>
 <style>
   /* Control estilo Apple TV: panel táctil arriba, botones redondos, apps y ciudades abajo */
-  :root { --bg:#000; --fg:#f5f5f7; --muted:#8e8e93; --key:#1c1c1e; --key-on:#3a3a3c; --pad:#161618; --accent:#0a84ff; color-scheme:dark; }
+  :root { --bg:#eef1f5; --fg:#1a1f29; --muted:#6b7383; --key:#ffffff; --key-on:#e2e7ef; --pad:#f8fafc; --line:#dde2ea; --faint:#b3bbc8; --dot:rgba(26,31,41,.08); --accent:#2f6fed; --ok:#30d158; --warn-bg:#fff4cc; --warn-fg:#6b5000; --err-bg:#ffe5e3; --err-fg:#9b1c12; --shadow:0 1px 2px rgba(20,30,50,.06); color-scheme:light; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; touch-action:manipulation; }
   input { -webkit-user-select:text; user-select:text; }
   html, body { margin:0; background:var(--bg); color:var(--fg); font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; }
@@ -19,23 +19,24 @@
   header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
   header h1 { font-size:17px; font-weight:600; margin:0; }
   header { gap:12px; } header h1 { flex:1; }
-  #power { width:44px; height:44px; border-radius:50%; border:0; background:#3a3a3c; color:#fff; display:grid; place-items:center; flex:none; }
+  #power { width:44px; height:44px; border-radius:50%; border:0; background:var(--key-on); color:var(--fg); display:grid; place-items:center; flex:none; }
   #power svg { width:20px; height:20px; }
-  #power.on { background:#30d158; color:#002b0e; }
+  #power.on { background:var(--ok); color:#002b0e; }
   #power.busy { opacity:.5; }
   #status { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
-  #status i { width:8px; height:8px; border-radius:50%; background:#30d158; }
+  #status i { width:8px; height:8px; border-radius:50%; background:var(--ok); }
   #status.off i { background:#ff453a; }
 
-  #pad { position:relative; height:min(52vh, 340px); border-radius:28px; background:var(--pad); border:1px solid #2c2c2e; touch-action:none; overflow:hidden; }
-  #pad .hint { position:absolute; inset:auto 0 14px 0; text-align:center; font-size:12px; color:#48484a; pointer-events:none; }
-  #pad .dot { position:absolute; width:56px; height:56px; margin:-28px 0 0 -28px; border-radius:50%; background:rgba(255,255,255,.08); opacity:0; transition:opacity .25s; pointer-events:none; }
-  #pad .arrow { position:absolute; color:#3a3a3c; font-size:22px; pointer-events:none; }
+  #pad { position:relative; height:min(52vh, 340px); border-radius:28px; background:var(--pad); border:1px solid var(--line); touch-action:none; overflow:hidden; }
+  #pad .hint { position:absolute; inset:auto 0 14px 0; text-align:center; font-size:12px; color:var(--faint); pointer-events:none; }
+  #pad .dot { position:absolute; width:56px; height:56px; margin:-28px 0 0 -28px; border-radius:50%; background:var(--dot); opacity:0; transition:opacity .25s; pointer-events:none; }
+  #pad .arrow { position:absolute; color:var(--faint); font-size:22px; pointer-events:none; }
   #pad .a-up { top:12px; left:50%; transform:translateX(-50%); } #pad .a-down { bottom:34px; left:50%; transform:translateX(-50%); }
   #pad .a-left { left:14px; top:50%; transform:translateY(-50%); } #pad .a-right { right:14px; top:50%; transform:translateY(-50%); }
-  #pad.flash { background:#1f1f22; }
+  #pad.flash { background:var(--key-on); }
 
   .row { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-top:18px; }
+  .key, .pill, .city, .btdev, .app, .type input { box-shadow:var(--shadow); }
   .key { aspect-ratio:1; border-radius:50%; border:0; background:var(--key); color:var(--fg); font-size:22px; display:flex; align-items:center; justify-content:center; }
   .key:active, .key.on { background:var(--key-on); transform:scale(.96); }
   .key small { display:block; font-size:10px; color:var(--muted); margin-top:2px; }
@@ -45,31 +46,35 @@
 
   h2 { font-size:13px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:26px 4px 10px; }
   #apps { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
-  .app { aspect-ratio:16/9; border-radius:12px; overflow:hidden; background:#1c1c1e; border:0; padding:0; display:flex; align-items:center; justify-content:center; color:var(--fg); font-size:12px; }
+  .app { aspect-ratio:16/9; border-radius:12px; overflow:hidden; background:var(--key); border:0; padding:0; display:flex; align-items:center; justify-content:center; color:var(--fg); font-size:12px; }
   .app img { width:100%; height:100%; object-fit:cover; }
   .app:active { transform:scale(.96); }
   #cities { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
-  .city { text-align:left; border:0; border-radius:14px; background:#1c1c1e; color:var(--fg); padding:12px; font-size:15px; display:flex; gap:10px; align-items:center; min-width:0; }
+  .city { text-align:left; border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:12px; font-size:15px; display:flex; gap:10px; align-items:center; min-width:0; }
   .city span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .city:active { background:#2c2c2e; }
+  .city:active { background:var(--line); }
   .wide { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
-  .pill { border:0; border-radius:14px; background:#1c1c1e; color:var(--fg); padding:14px; font-size:15px; }
-  .pill:active { background:#2c2c2e; }
-  #toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom, 0px) + 20px); transform:translateX(-50%); background:#2c2c2e; color:var(--fg); padding:10px 16px; border-radius:12px; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none; max-width:90vw; text-align:center; }
+  .pill { border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:14px; font-size:15px; }
+  .pill:active { background:var(--line); }
+  #toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom, 0px) + 20px); transform:translateX(-50%); background:var(--line); color:var(--fg); padding:10px 16px; border-radius:12px; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none; max-width:90vw; text-align:center; }
   #toast.show { opacity:1; }
   #bt { display:flex; flex-direction:column; gap:8px; }
-  .btdev { display:flex; align-items:center; gap:12px; border:0; border-radius:14px; background:#1c1c1e; color:var(--fg); padding:14px; font-size:15px; text-align:left; width:100%; }
-  .btdev:active { background:#2c2c2e; }
+  .btdev { display:flex; align-items:center; gap:12px; border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:14px; font-size:15px; text-align:left; width:100%; }
+  .btdev:active { background:var(--line); }
   .btdev svg { width:22px; height:22px; flex:none; color:var(--muted); }
   .btdev span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .btdev em { font-style:normal; font-size:13px; color:var(--muted); }
   .btdev.on svg, .btdev.on em { color:var(--accent); }
-  .btdev.busy em { color:#ffd60a; }
+  .btdev.busy em { color:var(--warn-fg); }
   .type { display:flex; gap:8px; margin-top:12px; }
-  .type input { flex:1; min-width:0; border:0; border-radius:14px; background:#1c1c1e; color:var(--fg); padding:14px; font-size:16px; }
+  .type input { flex:1; min-width:0; border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:14px; font-size:16px; }
   .type .pill { flex:none; padding:14px 18px; }
-  #keysNote { display:none; margin-top:12px; background:#2a2410; color:#ffd60a; padding:12px 14px; border-radius:14px; font-size:14px; line-height:1.4; }
-  #err { display:none; background:#2c1414; color:#ff9f9a; padding:14px; border-radius:14px; margin-bottom:14px; font-size:14px; line-height:1.4; }
+  #keysNote { display:none; margin-top:12px; background:var(--warn-bg); color:var(--warn-fg); padding:12px 14px; border-radius:14px; font-size:14px; line-height:1.4; }
+  #err { display:none; background:var(--err-bg); color:var(--err-fg); padding:14px; border-radius:14px; margin-bottom:14px; font-size:14px; line-height:1.4; }
+  .themes { display:flex; gap:12px; flex-wrap:wrap; }
+  .sw { width:44px; height:44px; border-radius:50%; border:2px solid var(--line); padding:0; position:relative; }
+  .sw.sel { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .sw i { position:absolute; inset:9px; border-radius:50%; }
 </style>
 </head>
 <body>
@@ -93,20 +98,20 @@
   </div>
 </div>
 <div class="wide">
-  <button class="pill" data-k="rew">⏪ Retroceder</button>
-  <button class="pill" data-k="ff">Adelantar ⏩</button>
+  <button class="pill" data-k="rew">Retroceder</button>
+  <button class="pill" data-k="ff">Adelantar</button>
 </div>
 <div class="wide">
-  <button class="pill" data-k="cam">📷 Otra cámara</button>
-  <button class="pill" data-k="mute">🔇 Silenciar</button>
+  <button class="pill" data-k="cam">Otra cámara</button>
+  <button class="pill" data-k="mute">Silenciar</button>
 </div>
 
-<form id="typeForm" class="type"><input id="typeIn" type="text" placeholder="Escribir en la TV (buscar en YouTube…)" autocomplete="off" autocapitalize="off" enterkeyhint="send"><button class="pill" type="submit">Enviar</button></form>
+<form id="typeForm" class="type"><input id="typeIn" type="text" placeholder="Escribir en la TV" autocomplete="off" autocapitalize="off" enterkeyhint="send"><button class="pill" type="submit">Enviar</button></form>
 <div id="keysNote"></div>
 
 <h2>Bluetooth</h2>
 <div id="bt"><button class="btdev" id="btload"><span>Buscando equipos…</span></button></div>
-<div class="wide" style="grid-template-columns:1fr"><button class="pill" data-k="btsettings">⚙︎ Ajustes de Bluetooth de la TV</button></div>
+<div class="wide" style="grid-template-columns:1fr"><button class="pill" data-k="btsettings">Ajustes de Bluetooth de la TV</button></div>
 
 <h2>Apps</h2>
 <div id="apps"></div>
@@ -114,12 +119,44 @@
 <h2>Ciudades</h2>
 <div id="cities"></div>
 
+<h2>Fondo</h2>
+<div class="themes" id="themes"></div>
+
 <div id="toast"></div>
 
 <script src="https://yoan231291-sketch.github.io/mytv-launcher/cities.js"></script>
 <script>
 // Sin zoom: iPhone ignora user-scalable=no, así que se bloquean el doble toque y el pellizco aquí
 ['gesturestart','gesturechange','dblclick'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive:false }));
+
+// Fondos: claros y minimalistas (más uno oscuro). Se recuerda en este teléfono.
+const THEMES = {
+  niebla: { name:'Niebla', bg:'#eef1f5', fg:'#1a1f29', muted:'#6b7383', key:'#ffffff', 'key-on':'#e2e7ef', pad:'#f8fafc', line:'#dde2ea', faint:'#b3bbc8', accent:'#2f6fed' },
+  blanco: { name:'Blanco', bg:'#ffffff', fg:'#16181d', muted:'#71757e', key:'#f3f4f6', 'key-on':'#e4e6ea', pad:'#f7f8f9', line:'#e6e8eb', faint:'#b9bdc4', accent:'#1f6feb' },
+  salvia: { name:'Salvia', bg:'#edf1ea', fg:'#1d2519', muted:'#68735f', key:'#ffffff', 'key-on':'#dfe6da', pad:'#f7f9f5', line:'#d9e1d3', faint:'#aeb9a6', accent:'#3b7a4a' },
+  rosa:   { name:'Rosa', bg:'#f6eeec', fg:'#2a1c1a', muted:'#86706b', key:'#ffffff', 'key-on':'#eedfdb', pad:'#fcf8f7', line:'#ead9d4', faint:'#c7b1ab', accent:'#c4566b' },
+  oscuro: { name:'Oscuro', bg:'#000000', fg:'#f5f5f7', muted:'#8e8e93', key:'#1c1c1e', 'key-on':'#3a3a3c', pad:'#161618', line:'#2c2c2e', faint:'#48484a', accent:'#0a84ff', dark:true },
+};
+function applyTheme(id) {
+  const t = THEMES[id] || THEMES.niebla, r = document.documentElement.style;
+  ['bg','fg','muted','key','key-on','pad','line','faint','accent'].forEach(k => r.setProperty('--' + k, t[k]));
+  r.setProperty('--dot', t.dark ? 'rgba(255,255,255,.08)' : 'rgba(26,31,41,.08)');
+  r.setProperty('--shadow', t.dark ? 'none' : '0 1px 2px rgba(20,30,50,.06)');
+  r.setProperty('--warn-bg', t.dark ? '#2a2410' : '#fff4cc'); r.setProperty('--warn-fg', t.dark ? '#ffd60a' : '#6b5000');
+  r.setProperty('--err-bg', t.dark ? '#2c1414' : '#ffe5e3'); r.setProperty('--err-fg', t.dark ? '#ff9f9a' : '#9b1c12');
+  r.colorScheme = t.dark ? 'dark' : 'light';
+  document.querySelector('meta[name=theme-color]').content = t.bg;
+  document.querySelectorAll('.sw').forEach(b => b.classList.toggle('sel', b.dataset.t === id));
+  try { localStorage.setItem('mytv-theme', id); } catch {}
+}
+let themeId = 'niebla'; try { themeId = localStorage.getItem('mytv-theme') || 'niebla'; } catch {}
+applyTheme(themeId);
+document.addEventListener('DOMContentLoaded', () => {
+  const box = document.getElementById('themes');
+  Object.entries(THEMES).forEach(([id, t]) => { const b = document.createElement('button'); b.className = 'sw'; b.dataset.t = id; b.setAttribute('aria-label', 'Fondo ' + t.name);
+    b.style.background = t.bg; b.innerHTML = `<i style="background:${t.key};box-shadow:inset 0 0 0 1px ${t.line}"></i>`; b.onclick = () => applyTheme(id); box.appendChild(b); });
+  applyTheme(themeId);
+});
 
 // La clave viene en el enlace (?t=...) y se guarda para la próxima vez
 const qs = new URLSearchParams(location.search);
