@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MyTV">
@@ -12,7 +12,8 @@
 <style>
   /* Control estilo Apple TV: panel táctil arriba, botones redondos, apps y ciudades abajo */
   :root { --bg:#000; --fg:#f5f5f7; --muted:#8e8e93; --key:#1c1c1e; --key-on:#3a3a3c; --pad:#161618; --accent:#0a84ff; color-scheme:dark; }
-  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; touch-action:manipulation; }
+  input { -webkit-user-select:text; user-select:text; }
   html, body { margin:0; background:var(--bg); color:var(--fg); font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; }
   body { padding: calc(env(safe-area-inset-top, 0px) + 14px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px)); max-width:480px; margin:0 auto; }
   header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
@@ -117,6 +118,9 @@
 
 <script src="https://yoan231291-sketch.github.io/mytv-launcher/cities.js"></script>
 <script>
+// Sin zoom: iPhone ignora user-scalable=no, así que se bloquean el doble toque y el pellizco aquí
+['gesturestart','gesturechange','dblclick'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive:false }));
+
 // La clave viene en el enlace (?t=...) y se guarda para la próxima vez
 const qs = new URLSearchParams(location.search);
 let token = qs.get('t'); try { if (token) localStorage.setItem('mytv-t', token); else token = localStorage.getItem('mytv-t'); } catch {}
@@ -136,7 +140,17 @@ async function send(k, v) {
 function setOnline(on) { $('status').classList.toggle('off', !on); $('status').querySelector('span').textContent = on ? 'Conectado' : 'Sin conexión con la TV'; }
 function showErr(m) { $('err').textContent = m; $('err').style.display = 'block'; }
 
-document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => send(b.dataset.k)));
+// Botones: responden al tocar (sin esperar), y volumen/flechas se repiten si los mantienes presionados
+document.querySelectorAll('[data-k]').forEach(b => {
+  let rep, hold;
+  const stop = () => { clearTimeout(hold); clearInterval(rep); b.classList.remove('on'); };
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); b.classList.add('on'); send(b.dataset.k);
+    if (['volup','voldown'].includes(b.dataset.k)) hold = setTimeout(() => { rep = setInterval(() => send(b.dataset.k), 180); }, 450);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(t => b.addEventListener(t, stop));
+  b.addEventListener('touchend', e => e.preventDefault(), { passive:false });   // evita el "clic" fantasma y el zoom
+});
 
 // Panel táctil: deslizar = flechas (se repite si deslizas largo), tocar = OK
 const pad = $('pad'), dot = $('dot'); let sx, sy, lx, ly, moved, t0;
