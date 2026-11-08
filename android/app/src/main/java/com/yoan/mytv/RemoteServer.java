@@ -170,7 +170,7 @@ final class RemoteServer {
                 boolean yt = front || (fg != null && fg.contains("youtube"));
                 if (RemoteIme.hasEditor()) { RemoteIme.text(t); }                 // hay un campo de texto abierto: se escribe ahí
                 else if (yt) {                                                       // YouTube (o MyTV): abre la búsqueda con el texto ya puesto
-                    Intent yi = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("youtube://search?q=" + android.net.Uri.encode(t)))
+                    Intent yi = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("youtube://search?query=" + android.net.Uri.encode(t)))
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     String pkg = Apps.installed(svc, "com.amazon.firetv.youtube,com.google.android.youtube.tv");
                     if (pkg != null) yi.setPackage(pkg);
