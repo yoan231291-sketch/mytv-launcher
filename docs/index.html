@@ -25,8 +25,8 @@
   #camCover::before { content:""; position:absolute; inset:-30px; background:var(--img, none) center/cover no-repeat; filter:blur(10px) brightness(.85); }
   #camCover.off { opacity:0; }
   /* Vista de 4 ciudades a la vez (opcional) */
-  #mosaic { position:fixed; inset:0; z-index:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:4px; background:#000; }
-  #mosaic .cell { position:relative; overflow:hidden; background:#0b0d12 center/cover no-repeat; }
+  #mosaic { position:fixed; inset:0; z-index:1; display:grid; grid-template-columns:1fr 1fr; align-content:center; gap:6px; background:#000; }
+  #mosaic .cell { position:relative; overflow:hidden; aspect-ratio:16/9; background:#0b0d12 center/cover no-repeat; }
   #mosaic iframe { position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:none; }
   #mosaic .lbl { position:absolute; left:2.2vh; bottom:2vh; font-weight:700; font-size:clamp(14px,2.2vh,30px); color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.7); display:flex; gap:.5em; align-items:baseline; }
   #mosaic .lbl small { font-weight:600; opacity:.85; font-size:.8em; }
@@ -193,7 +193,7 @@ const DOCK = [
   ...APPS.map(a => ({ ...a, kind:'app', pkg: a.pkgs.find(p => installed[p]) }))
          .filter(a => !TV || a.pkg),                 // en la TV solo mostramos las apps instaladas
   { name:'Ciudades', kind:'cities',   icon:'globe', bg:'bg-cities' },
-  { name:'4 ciudades', kind:'mosaic', icon:'quad', bg:'bg-cities' },
+  { name:'2 ciudades', kind:'mosaic', icon:'quad', bg:'bg-cities' },
   { name:'Todas',    kind:'all',      icon:'grid',  bg:'bg-all' },
   { name:'Ajustes',  kind:'settings', icon:'gear',  bg:'bg-set' },
 ];
@@ -357,6 +357,8 @@ function onYouTubeIframeAPIReady() {
         log('estado', e.data);
         if (e.data === YT.PlayerState.PLAYING) { failCount = 0; skips = 0; clearTimeout(coverT); coverT = setTimeout(coverOff, 3000); setTimeout(hideYtControls, 1200); }
         if (e.data === YT.PlayerState.ENDED && !bg) nextCam(true);
+        // Si la cámara se pausa sola (y se verían el botón de pausa y los textos), se descarta y se pasa a otra
+        if (e.data === YT.PlayerState.PAUSED && !bg && !mosaic) { const was = cams[camIdx]; setTimeout(() => { try { if (!bg && !mosaic && cams[camIdx] === was && player.getPlayerState() === 2) { log('cámara pausada: la cambio', was); nextCam(true); } } catch {} }, 4000); }
       },
       onError: e => { log('error', e.data); if (!bg) nextCam(true); }
     }
@@ -419,48 +421,84 @@ setInterval(() => { try { if (TV && AndroidTV.alive && playerReady && player.get
 setInterval(() => { if (!bg && performance.now() > 6 * 3600e3 && document.body.classList.contains('idle') && !ov) location.reload(); }, 60e3);
 // Segundo plano: con otra app abierta, la cámara se DETIENE (libera el decodificador de video de la TV)
 // y nada se recarga ni se busca hasta volver.
-// ---------- Vista de 4 ciudades (opcional; por defecto se ve una) ----------
+// ---------- Vista de varias ciudades a la vez (opcional; por defecto se ve una) ----------
+// Esta TV decodifica como máximo 2 videos a la vez (chip MediaTek: concurrent-instances = 2), por eso son 2.
+// Si una cámara se pausa, se traba o no arranca, se cambia sola por otra ciudad (nunca se queda una pausada).
+const MOSAIC_N = 2;
 let mosaic = false; try { mosaic = localStorage.getItem('mytv-mosaic') === '1'; } catch {}
-let mosaicStart = 0;
-function mosaicCities() {
-  const out = []; for (let i = 0; out.length < 4 && i < CITIES.length; i++) { const c = CITIES[(mosaicStart + cityIdx + i) % CITIES.length]; if (buildCams(c).length) out.push(c); }
-  return out;
+let mosaicStart = 0, mosaicPlayers = [], mosaicSkip = new Set();
+function mosaicPick(exclude) {
+  for (let i = 0; i < CITIES.length; i++) {
+    const c = CITIES[(mosaicStart + cityIdx + i) % CITIES.length];
+    if (!exclude.includes(c.id) && !mosaicSkip.has(c.id) && buildCams(c).length) return c;
+  }
+  return null;
+}
+function clearMosaic() {
+  mosaicPlayers.forEach(p => { try { p.player.destroy(); } catch {} clearInterval(p.watch); });
+  mosaicPlayers = []; const m = $('mosaic'); if (m) m.remove();
+}
+function mosaicCell(m, slot, c) {
+  const id = buildCams(c)[0], cell = document.createElement('div'); cell.className = 'cell';
+  cell.style.backgroundImage = `url(https://i.ytimg.com/vi/${id}/mqdefault_live.jpg)`;
+  cell.innerHTML = `<div id="mp${slot}"></div><div class="lbl">${c.flag} ${c.name}<small data-tz="${c.tz}">${fmt(c.tz)}</small></div>`;
+  m.children[slot] ? m.replaceChild(cell, m.children[slot]) : m.appendChild(cell);
+  const rec = { city: c.id, since: Date.now(), playingAt: 0 };
+  rec.player = new YT.Player('mp' + slot, {
+    videoId: id,
+    playerVars: { autoplay:1, mute:1, controls:0, disablekb:1, fs:0, iv_load_policy:3, modestbranding:1, playsinline:1, rel:0, origin: location.origin },
+    events: {
+      onReady: e => { e.target.mute(); e.target.playVideo(); },
+      onStateChange: e => { if (e.data === 1) { rec.playingAt = Date.now(); setTimeout(() => hideCell(slot), 1500); setTimeout(() => hideCell(slot), 8000); } },
+      onError: () => swapCell(slot)
+    }
+  });
+  // Vigilante: si no se reproduce (pausada, trabada o cargando) más de 25 s, se cambia por otra ciudad
+  let notPlaying = 0;
+  rec.watch = setInterval(() => {
+    let st = -1; try { st = rec.player.getPlayerState(); } catch {}
+    if (st === 1) { notPlaying = 0; return; }
+    notPlaying += 5;
+    if (notPlaying >= (rec.playingAt ? 15 : 30)) { log('celda', slot, c.id, 'sin reproducir: cambio'); swapCell(slot); }
+  }, 5000);
+  mosaicPlayers[slot] = rec;
+}
+function swapCell(slot) {
+  const m = $('mosaic'); const old = mosaicPlayers[slot]; if (!m || !old) return;
+  mosaicSkip.add(old.city); clearInterval(old.watch); try { old.player.destroy(); } catch {}
+  const c = mosaicPick(mosaicPlayers.filter(Boolean).map(p => p.city)); if (c) mosaicCell(m, slot, c);
 }
 function buildMosaic() {
-  let m = $('mosaic'); if (m) m.remove();
-  if (!mosaic || bg) return;
-  m = document.createElement('div'); m.id = 'mosaic'; document.body.appendChild(m);
-  mosaicCities().forEach(c => {
-    const id = buildCams(c)[0], cell = document.createElement('div'); cell.className = 'cell';
-    cell.style.backgroundImage = `url(https://i.ytimg.com/vi/${id}/mqdefault_live.jpg)`;
-    cell.innerHTML = `<iframe allow="autoplay; encrypted-media" src="https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&playsinline=1&rel=0&vq=medium"></iframe><div class="lbl">${c.flag} ${c.name}<small data-tz="${c.tz}">${fmt(c.tz)}</small></div>`;
-    m.appendChild(cell);
-  });
-  setTimeout(hideMosaicControls, 7000); setTimeout(hideMosaicControls, 15000);
+  clearMosaic();
+  if (!mosaic || bg || !window.YT || !YT.Player) return;
+  const m = document.createElement('div'); m.id = 'mosaic'; document.body.appendChild(m);
+  const used = [];
+  for (let i = 0; i < MOSAIC_N; i++) { const c = mosaicPick(used); if (!c) break; used.push(c.id); mosaicCell(m, i, c); }
 }
-// Esconde los controles de YouTube en los 4 videos: el "puntero" pasa por cada uno y sale
-function hideMosaicControls() {
+// Esconde los controles de YouTube de una celda: el "puntero" pasa por encima del video y sale
+function hideCell(slot) {
   if (!TV || typeof AndroidTV.hoverAt !== 'function') return;
-  const fr = [...document.querySelectorAll('#mosaic iframe')];
-  fr.forEach((f, i) => setTimeout(() => {
-    const r = f.getBoundingClientRect(); f.style.pointerEvents = 'auto';
-    AndroidTV.hoverAt((r.left + r.width / 2) / innerWidth, (r.top + r.height / 2) / innerHeight);
-    setTimeout(() => { f.style.pointerEvents = 'none'; }, 350);
-  }, i * 1000));
+  const f = document.querySelector(`#mosaic .cell:nth-child(${slot + 1}) iframe`); if (!f) return;
+  const r = f.getBoundingClientRect(); f.style.pointerEvents = 'auto';
+  AndroidTV.hoverAt((r.left + r.width / 2) / innerWidth, (r.top + r.height / 2) / innerHeight);
+  setTimeout(() => { f.style.pointerEvents = 'none'; }, 350);
 }
-setInterval(() => { if (mosaic && !bg && !ov) hideMosaicControls(); }, 30000);
+setInterval(() => { if (mosaic && !bg && !ov) mosaicPlayers.forEach((p, i) => setTimeout(() => hideCell(i), i * 1000)); }, 40000);
 window.toggleMosaic = on => {
   mosaic = on === undefined ? !mosaic : !!on;
   try { localStorage.setItem('mytv-mosaic', mosaic ? '1' : '0'); } catch {}
-  const d = DOCK.find(x => x.kind === 'mosaic'); if (d) { d.name = mosaic ? '1 ciudad' : '4 ciudades'; d.icon = mosaic ? 'single' : 'quad'; renderDock(); }
-  if (mosaic) { clearTimeout(watchT); try { player.stopVideo(); } catch {} coverOff(); buildMosaic(); toast('4 ciudades en vivo · ◀ ▶ para cambiar el grupo'); }
-  else { const m = $('mosaic'); if (m) m.remove(); playCurrent(); }
+  const d = DOCK.find(x => x.kind === 'mosaic'); if (d) { d.name = mosaic ? '1 ciudad' : '2 ciudades'; d.icon = mosaic ? 'single' : 'quad'; renderDock(); }
+  if (mosaic) { mosaicSkip.clear(); clearTimeout(watchT); try { player.stopVideo(); } catch {} coverOff(); setTimeout(buildMosaic, 400); toast('2 ciudades en vivo · ▲ ▼ para cambiar'); }
+  else { clearMosaic(); playCurrent(); }
 };
-setInterval(() => { document.querySelectorAll('#mosaic small[data-tz]').forEach(e => e.textContent = fmt(e.dataset.tz)); if (mosaic && !bg && TV && AndroidTV.alive) AndroidTV.alive(); }, 20000);
+setInterval(() => {
+  document.querySelectorAll('#mosaic small[data-tz]').forEach(e => e.textContent = fmt(e.dataset.tz));
+  if (mosaic && !bg && TV && AndroidTV.alive && mosaicPlayers.some(p => { try { return p.player.getPlayerState() === 1; } catch { return false; } })) AndroidTV.alive();
+}, 20000);
 
 window.tvBackground = on => {
   bg = !!on;
-  if (mosaic) { if (bg) { const m = $('mosaic'); if (m) m.remove(); } else buildMosaic(); return; }
+  if (mosaic) { if (bg) clearMosaic(); else buildMosaic(); return; }
   clearTimeout(watchT); clearTimeout(coverT);
   if (!playerReady) return;
   if (bg) { try { player.stopVideo(); } catch {} log('segundo plano: cámara detenida'); }
@@ -547,7 +585,7 @@ document.addEventListener('keydown', e => {
     return;
   }
   // ▲▼ cambian de ciudad incluso con la interfaz oculta (como cambiar de canal); con 4 ciudades, cambian el grupo
-  if (mosaic && (k === 'ArrowUp' || k === 'ArrowDown')) { mosaicStart += (k === 'ArrowDown' ? 4 : -4) + CITIES.length; buildMosaic(); return; }
+  if (mosaic && (k === 'ArrowUp' || k === 'ArrowDown')) { mosaicStart += (k === 'ArrowDown' ? MOSAIC_N : -MOSAIC_N) + CITIES.length; mosaicSkip.clear(); buildMosaic(); return; }
   if (k === 'ArrowUp')   { selectCity(cityIdx - 1, true); return; }
   if (k === 'ArrowDown') { selectCity(cityIdx + 1, true); return; }
   if (isIdle()) { wake(); return; }           // la primera tecla solo muestra la interfaz
