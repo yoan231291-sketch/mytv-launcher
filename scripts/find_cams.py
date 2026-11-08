@@ -49,13 +49,14 @@ def city(row):
     cid, name, spot, flag, tz, lat, lon, q, kw = row
     kwre = re.compile(kw, re.I)
     seen, cands = set(), []
-    for query in (q, q + " 24/7", q + " 4k"):
+    k = kw.split("|")[0]
+    for query in (q, q + " 24/7", f"{k} live cam", f"{k} webcam 24/7", f"{k} skyline live camera", f"{k} cámara en vivo", f"{k} live stream city view"):
         for v, t, ch in search(query):
             if v in seen or BAD.search(t) or not kwre.search(t + " " + ch): continue
             seen.add(v); cands.append((v, t, ch))
-        if len(cands) >= 10: break
+        if len(cands) >= 12: break
     out = []
-    for v, t, ch in cands[:10]:
+    for v, t, ch in cands[:12]:
         p = probe(v)
         if p: out.append(p)
     print(cid, len(out), "sin anuncios:", sum(not x["ads"] for x in out), flush=True)
