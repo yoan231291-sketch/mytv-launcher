@@ -436,7 +436,19 @@ function buildMosaic() {
     cell.innerHTML = `<iframe allow="autoplay; encrypted-media" src="https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&playsinline=1&rel=0&vq=medium"></iframe><div class="lbl">${c.flag} ${c.name}<small data-tz="${c.tz}">${fmt(c.tz)}</small></div>`;
     m.appendChild(cell);
   });
+  setTimeout(hideMosaicControls, 7000); setTimeout(hideMosaicControls, 15000);
 }
+// Esconde los controles de YouTube en los 4 videos: el "puntero" pasa por cada uno y sale
+function hideMosaicControls() {
+  if (!TV || typeof AndroidTV.hoverAt !== 'function') return;
+  const fr = [...document.querySelectorAll('#mosaic iframe')];
+  fr.forEach((f, i) => setTimeout(() => {
+    const r = f.getBoundingClientRect(); f.style.pointerEvents = 'auto';
+    AndroidTV.hoverAt((r.left + r.width / 2) / innerWidth, (r.top + r.height / 2) / innerHeight);
+    setTimeout(() => { f.style.pointerEvents = 'none'; }, 350);
+  }, i * 1000));
+}
+setInterval(() => { if (mosaic && !bg && !ov) hideMosaicControls(); }, 30000);
 window.toggleMosaic = on => {
   mosaic = on === undefined ? !mosaic : !!on;
   try { localStorage.setItem('mytv-mosaic', mosaic ? '1' : '0'); } catch {}

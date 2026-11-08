@@ -304,6 +304,18 @@ public class MainActivity extends Activity {
             });
         }
 
+        /** Igual que hoverNudge pero en un punto (fracción del ancho/alto): para cada video de la vista de 4 ciudades. */
+        @JavascriptInterface
+        public void hoverAt(final float xf, final float yf) {
+            ui.post(() -> {
+                final float x = web.getWidth() * xf, y = web.getHeight() * yf;
+                hover(MotionEvent.ACTION_HOVER_ENTER, x, y);
+                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_MOVE, x + 8, y + 6), 100);
+                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_MOVE, x + 12, y + 10), 650);
+                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_EXIT, x + 12, y + 10), 750);
+            });
+        }
+
         @JavascriptInterface public int version() { return BuildConfig.VERSION_CODE; }
 
         /** Clave del canal de dibujo (el teléfono dibuja desde cualquier lugar y aparece aquí). */
