@@ -6,7 +6,7 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>MyTV Live Cams</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="cities.js"></script>
+<script>document.write('<script src="cities.js?t='+Math.floor(Date.now()/60000)+'"><\/script>')</script>
 <style>
   /* Layout: cámara a pantalla completa; arriba solo ciudad + hora; abajo una fila horizontal de apps */
   :root { --bg:#000; --fg:#fff; --muted:rgba(255,255,255,.7); --tile:rgba(12,14,20,.55); --tile-on:rgba(255,255,255,.95); --accent:#38bdf8; color-scheme:dark; }
