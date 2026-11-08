@@ -106,4 +106,13 @@ public class HomeWatcherService extends AccessibilityService {
     @Override public void onDestroy() { if (screenRegistered) { try { unregisterReceiver(screen); } catch (Exception ignored) { } } if (remote != null) remote.stop(); h.removeCallbacks(poll); super.onDestroy(); }
 
     @Override public void onInterrupt() { }
+
+    /** Para la instalación: "adb shell dumpsys activity service com.yoan.mytv/.HomeWatcherService" muestra los enlaces del control. */
+    @Override protected void dump(java.io.FileDescriptor fd, java.io.PrintWriter pw, String[] args) {
+        pw.println("MYTV_CONTROL_CASA=" + RemoteServer.url(this));
+        pw.println("MYTV_CONTROL_INTERNET=" + RemoteServer.onlineUrl(this));
+        pw.println("MYTV_DIBUJO=" + RemoteServer.drawUrl(this));
+        pw.println("MYTV_TECLADO=" + (RemoteIme.current != null ? "activo" : "inactivo"));
+        pw.println("MYTV_FOTO=" + (ScreenCap.projection != null ? "lista" : "sin permiso"));
+    }
 }
