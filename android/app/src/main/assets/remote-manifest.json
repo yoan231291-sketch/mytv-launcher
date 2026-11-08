@@ -1,1 +1,1 @@
-{ "name": "MyTV Remote", "short_name": "MyTV", "display": "standalone", "background_color": "#000000", "theme_color": "#000000", "start_url": "./" }
+{ "name": "MyTV", "short_name": "MyTV", "display": "standalone", "background_color": "#eef1f5", "theme_color": "#eef1f5", "start_url": "./", "scope": "./" }

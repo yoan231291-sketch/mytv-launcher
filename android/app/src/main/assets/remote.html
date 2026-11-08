@@ -162,7 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // La clave viene en el enlace (?t=...) y se guarda para la próxima vez
 const qs = new URLSearchParams(location.search);
-let token = qs.get('t'); try { if (token) localStorage.setItem('mytv-t', token); else token = localStorage.getItem('mytv-t'); } catch {}
+let token = (location.pathname.match(/^\/k\/([a-z0-9]+)/) || [])[1] || qs.get('t');
+try { if (token) localStorage.setItem('mytv-t', token); else token = localStorage.getItem('mytv-t'); } catch {}
 const $ = id => document.getElementById(id);
 let tT; const toast = m => { $('toast').textContent = m; $('toast').classList.add('show'); clearTimeout(tT); tT = setTimeout(() => $('toast').classList.remove('show'), 2400); };
 const buzz = () => { try { navigator.vibrate && navigator.vibrate(12); } catch {} };
@@ -173,7 +174,7 @@ async function send(k, v) {
     const r = await fetch(`/api/cmd?t=${encodeURIComponent(token || '')}&k=${k}${v ? '&v=' + encodeURIComponent(v) : ''}`, { cache:'no-store' });
     const j = await r.json(); setOnline(true);
     if (!j.ok && j.msg) toast(j.msg);
-    if (r.status === 403) showErr('Este enlace no tiene la clave correcta. Abre el enlace que aparece en la TV: Ajustes → Control desde el teléfono.');
+    if (r.status === 403) showErr('Este enlace no tiene la clave. Pide el enlace correcto a quien lo configuró (en la TV: Ajustes → Control desde el teléfono) y vuelve a agregarlo a la pantalla de inicio.');
   } catch { setOnline(false); }
 }
 function setOnline(on) { $('status').classList.toggle('off', !on); $('status').querySelector('span').textContent = on ? 'Conectado' : 'Sin conexión con la TV'; }
@@ -223,7 +224,7 @@ pad.addEventListener('pointerup', e => {
 async function loadApps() {
   try {
     const r = await fetch(`/api/apps?t=${encodeURIComponent(token || '')}`, { cache:'no-store' });
-    if (r.status === 403) return showErr('Este enlace no tiene la clave correcta. Abre el enlace que aparece en la TV: Ajustes → Control desde el teléfono.');
+    if (r.status === 403) return showErr('Este enlace no tiene la clave. Pide el enlace correcto a quien lo configuró (en la TV: Ajustes → Control desde el teléfono) y vuelve a agregarlo a la pantalla de inicio.');
     const { apps } = await r.json(); setOnline(true);
     const fav = (window.APPS || []).map(a => apps.find(x => a.pkgs.includes(x.pkg))).filter(Boolean);
     const rest = apps.filter(a => !fav.includes(a) && !/launcher|settings|screensaver|profile|ssm|vizzini|documentsui|downloads/.test(a.pkg));

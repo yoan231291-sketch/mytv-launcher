@@ -52,7 +52,7 @@ final class RemoteServer {
 
     static String url(Context c) {
         String t = c.getSharedPreferences("remote", Context.MODE_PRIVATE).getString("token", "");
-        return "http://" + ip() + ":" + PORT + "/?t=" + t;
+        return "http://" + ip() + ":" + PORT + "/k/" + t + "/";
     }
 
     /** Clave del dibujo desde fuera de casa (canal en vivo de internet). Se crea una vez. */
@@ -108,7 +108,22 @@ final class RemoteServer {
             Map<String, String> q = query(full.contains("?") ? full.substring(full.indexOf('?') + 1) : "");
             OutputStream out = sock.getOutputStream();
 
-            if (path.equals("/") || path.equals("/index.html")) { send(out, 200, "text/html; charset=utf-8", asset("remote.html")); return; }
+            // La clave va DENTRO de la dirección (/k/CLAVE/): así el ícono de la pantalla de inicio del iPhone
+            // la conserva y el mismo enlace se puede compartir con la familia.
+            if (path.startsWith("/k/")) {
+                String rest = path.substring(3); int sl = rest.indexOf('/');
+                String pk = sl < 0 ? rest : rest.substring(0, sl), sub = sl < 0 ? "" : rest.substring(sl);
+                if (sl < 0) { redirect(out, "/k/" + pk + "/"); return; }
+                if (!token.equals(pk)) { send(out, 403, "text/html; charset=utf-8", asset("remote.html")); return; }
+                if (sub.equals("/") || sub.equals("/index.html")) { send(out, 200, "text/html; charset=utf-8", asset("remote.html")); return; }
+                if (sub.equals("/manifest.json")) { send(out, 200, "application/manifest+json", asset("remote-manifest.json")); return; }
+                if (!sub.startsWith("/api/")) { send(out, 404, "text/plain", "no".getBytes()); return; }
+                path = sub; q.put("t", pk);
+            }
+            if (path.equals("/") || path.equals("/index.html")) {
+                if (token.equals(q.get("t"))) { redirect(out, "/k/" + token + "/"); return; }   // enlaces viejos con ?t=
+                send(out, 200, "text/html; charset=utf-8", asset("remote.html")); return;
+            }
             if (path.equals("/manifest.json")) { send(out, 200, "application/manifest+json", asset("remote-manifest.json")); return; }
             if (!token.equals(q.get("t"))) { send(out, 403, "application/json", "{\"ok\":false,\"msg\":\"Clave incorrecta\"}".getBytes("UTF-8")); return; }
 
@@ -220,6 +235,10 @@ final class RemoteServer {
             while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
             return b.toByteArray();
         }
+    }
+
+    private static void redirect(OutputStream out, String to) throws Exception {
+        out.write(("HTTP/1.1 302 Found\r\nLocation: " + to + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").getBytes("UTF-8")); out.flush();
     }
 
     private static void send(OutputStream out, int code, String type, byte[] body) throws Exception {
