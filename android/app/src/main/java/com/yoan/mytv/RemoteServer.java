@@ -102,7 +102,7 @@ final class RemoteServer {
             JSONObject res = new JSONObject();
             if (path.equals("/api/apps")) res.put("apps", new JSONArray(Apps.list(svc)));
             else if (path.equals("/api/bt")) res.put("devices", Bluetooth.list());
-            else if (path.equals("/api/state")) res.put("on", screenOn()).put("keys", svc.adb == null ? "sin conectar" : svc.adb.state());
+            else if (path.equals("/api/state")) res.put("on", screenOn()).put("keys", RemoteIme.current != null ? "listo" : "sin teclado");
             else if (path.equals("/api/cmd")) res = command(q.get("k"), q.get("v"));
             else { send(out, 404, "text/plain", "no".getBytes()); return; }
             send(out, 200, "application/json; charset=utf-8", res.toString().getBytes("UTF-8"));
@@ -138,8 +138,8 @@ final class RemoteServer {
             case "text": {   // escribir en buscadores (YouTube, Netflix…): solo letras sin acentos, números y signos simples
                 String t = v == null ? "" : java.text.Normalizer.normalize(v, java.text.Normalizer.Form.NFD).replaceAll("[^A-Za-z0-9 .,@_\\-]", "");
                 if (t.isEmpty()) { r.put("ok", false).put("msg", "Nada que escribir"); break; }
-                if (!svc.adb.ready()) { r.put("ok", false).put("msg", adbMsg()); break; }
-                svc.adb.run("input text '" + t.replace(" ", "%s") + "'");
+                if (front) { a.remoteJs("1"); }
+                if (!RemoteIme.text(t)) r.put("ok", false).put("msg", "Primero abre el buscador de la app en la TV");
                 break;
             }
             case "volup": am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI); break;
@@ -183,12 +183,8 @@ final class RemoteServer {
     }
 
     /** Tecla a cualquier app por ADB local. */
-    private boolean key(int code) { return svc.adb != null && svc.adb.ready() && svc.adb.run("input keyevent " + code); }
-    private String adbMsg() {
-        String st = svc.adb == null ? "sin conectar" : svc.adb.state();
-        return st.equals("esperando permiso") ? "En la TV aparece “¿Permitir depuración?”: marca “Permitir siempre” y acepta (solo una vez)."
-                : "Conectando el control con la TV… inténtalo en unos segundos.";
-    }
+    private boolean key(int code) { return RemoteIme.key(code) || (svc.adb != null && svc.adb.ready() && svc.adb.run("input keyevent " + code)); }
+    private String adbMsg() { return "Esa tecla no llegó a la app de la TV. Toca Inicio y vuelve a abrir la app."; }
 
     private boolean screenOn() {
         android.os.PowerManager pm = (android.os.PowerManager) svc.getSystemService(Context.POWER_SERVICE);
