@@ -37,6 +37,7 @@ final class AdbSelf {
     private final Context ctx;
     private final LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>();
     private volatile String state = "sin conectar";   // sin conectar | esperando permiso | listo
+    private int attempt = 0;
     private Socket sock; private DataInputStream in; private OutputStream out;
     private int remoteId; private final Object okLock = new Object(); private boolean okPending;
 
@@ -70,7 +71,9 @@ final class AdbSelf {
 
     private void connect() throws Exception {
         KeyPair kp = keys();
-        sock = new Socket(); sock.connect(new InetSocketAddress("127.0.0.1", 5555), 4000); sock.setTcpNoDelay(true);
+        String host = (attempt++ % 2 == 0) ? RemoteServer.ip() : "127.0.0.1";
+        sock = new Socket(); sock.connect(new InetSocketAddress(host, 5555), 4000); sock.setTcpNoDelay(true);
+        android.util.Log.i("MyTV", "adb: conectando a " + host);
         in = new DataInputStream(sock.getInputStream()); out = sock.getOutputStream();
         send(CNXN, 0x01000000, 4096, "host::\0".getBytes("UTF-8"));
         boolean sentSig = false, sentKey = false;
@@ -78,6 +81,7 @@ final class AdbSelf {
         while (true) {
             int[] h = new int[6]; byte[] data = read(h);
             if (h[0] == CNXN) break;
+            android.util.Log.i("MyTV", "adb: recibido " + Integer.toHexString(h[0]) + " tipo " + h[1]);
             if (h[0] != AUTH || h[1] != 1) continue;
             if (!sentSig) {
                 Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding"); c.init(Cipher.ENCRYPT_MODE, kp.getPrivate());
