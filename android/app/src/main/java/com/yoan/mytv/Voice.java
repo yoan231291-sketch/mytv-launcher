@@ -22,7 +22,8 @@ final class Voice {
         String t = norm(raw).replaceFirst("^(oye |hey )?alexa,? ", "");
         Matcher m;
         // encendido
-        if (t.matches(".*\\b(apaga|apagar|turn off|power off)\\b.*")) return new Plan("Apagando la TV", new String[]{"power_off", ""});
+        if (t.matches("^(apaga|apagala|apagar|turn off|power off)$") || t.matches(".*\\b(apaga|apagar|turn off|power off)\\b.*\\b(tv|tele|television|pantalla)\\b.*"))
+            return new Plan("Apagando la TV", new String[]{"power_off", ""});
         if (t.matches(".*\\b(prende|prender|enciende|encender|turn on|power on)\\b.*(tv|tele|television|pantalla).*")) return new Plan("Prendiendo la TV", new String[]{"power_on", ""});
         // volumen
         m = Pattern.compile("\\b(sube|subir|aumenta|turn up|volume up|mas volumen)\\b.*?(\\d+)?$").matcher(t);
