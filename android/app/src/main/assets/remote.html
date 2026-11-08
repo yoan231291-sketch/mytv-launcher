@@ -66,6 +66,7 @@
   .btdev em { font-style:normal; font-size:13px; color:var(--muted); }
   .btdev.on svg, .btdev.on em { color:var(--accent); }
   .btdev.busy em { color:var(--warn-fg); }
+  .drawlink { display:block; margin-top:12px; text-align:center; text-decoration:none; background:var(--fg); color:var(--bg); }
   .type { display:flex; gap:8px; margin-top:12px; }
   .type input { flex:1; min-width:0; border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:14px; font-size:16px; }
   .type .pill { flex:none; padding:14px 18px; }
@@ -106,6 +107,7 @@
   <button class="pill" data-k="mute">Silenciar</button>
 </div>
 
+<a class="pill drawlink" id="drawLink" href="#" target="_blank" rel="noopener">Dibujar en la TV (desde cualquier lugar)</a>
 <form id="typeForm" class="type"><input id="typeIn" type="text" placeholder="Escribir en la TV" autocomplete="off" autocapitalize="off" enterkeyhint="send"><button class="pill" type="submit">Enviar</button></form>
 <div id="keysNote"></div>
 
@@ -261,6 +263,7 @@ loadBt();
 async function loadState() {
   try { const r = await fetch(`/api/state?t=${encodeURIComponent(token || '')}`, { cache:'no-store' }); if (!r.ok) return;
     const j = await r.json(); setOnline(true); $('power').classList.toggle('on', !!j.on);
+    if (j.draw) $('drawLink').href = j.draw;
     const n = $('keysNote');
     if (j.keys === 'esperando permiso') { n.textContent = 'Falta un paso en la TV: aparece “¿Permitir depuración?”. Marca “Permitir siempre” y acepta. Es solo una vez y hace que las flechas funcionen dentro de YouTube, Netflix y cualquier app.'; n.style.display = 'block'; }
     else n.style.display = 'none'; } catch { setOnline(false); $('power').classList.remove('on'); }

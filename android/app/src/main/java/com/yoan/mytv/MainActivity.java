@@ -291,6 +291,16 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface public int version() { return BuildConfig.VERSION_CODE; }
+
+        /** Clave del canal de dibujo (el teléfono dibuja desde cualquier lugar y aparece aquí). */
+        @JavascriptInterface public String drawKey() { return RemoteServer.drawKey(MainActivity.this); }
+
+        /** Llegó un dibujo mientras había otra app: si la pantalla está prendida, MyTV pasa al frente. */
+        @JavascriptInterface public void bringFront() {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+            if (pm != null && !pm.isInteractive()) return;
+            startActivity(new Intent(MainActivity.this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+        }
     }
 
     private void hover(int action, float x, float y) {

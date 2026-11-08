@@ -55,6 +55,19 @@ final class RemoteServer {
         return "http://" + ip() + ":" + PORT + "/?t=" + t;
     }
 
+    /** Clave del dibujo desde fuera de casa (canal en vivo de internet). Se crea una vez. */
+    static String drawKey(Context c) {
+        SharedPreferences sp = c.getSharedPreferences("remote", Context.MODE_PRIVATE);
+        String k = sp.getString("draw", null);
+        if (k == null) {
+            String abc = "abcdefghjkmnpqrstuvwxyz23456789"; SecureRandom r = new SecureRandom(); StringBuilder b = new StringBuilder();
+            for (int i = 0; i < 16; i++) b.append(abc.charAt(r.nextInt(abc.length())));
+            k = b.toString(); sp.edit().putString("draw", k).apply();
+        }
+        return k;
+    }
+    static String drawUrl(Context c) { return "https://yoan231291-sketch.github.io/mytv-launcher/draw.html#k=" + drawKey(c); }
+
     static String ip() {
         try {
             for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
@@ -102,7 +115,7 @@ final class RemoteServer {
             JSONObject res = new JSONObject();
             if (path.equals("/api/apps")) res.put("apps", new JSONArray(Apps.list(svc)));
             else if (path.equals("/api/bt")) res.put("devices", Bluetooth.list());
-            else if (path.equals("/api/state")) res.put("on", screenOn()).put("keys", RemoteIme.current != null ? "listo" : "sin teclado");
+            else if (path.equals("/api/state")) res.put("on", screenOn()).put("keys", RemoteIme.current != null ? "listo" : "sin teclado").put("draw", drawUrl(svc));
             else if (path.equals("/api/cmd")) res = command(q.get("k"), q.get("v"));
             else { send(out, 404, "text/plain", "no".getBytes()); return; }
             send(out, 200, "application/json; charset=utf-8", res.toString().getBytes("UTF-8"));

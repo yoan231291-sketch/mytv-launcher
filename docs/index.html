@@ -24,6 +24,9 @@
   /* La miniatura es de baja resolución: un leve desenfoque la hace ver como una foto de fondo y no pixelada */
   #camCover::before { content:""; position:absolute; inset:-30px; background:var(--img, none) center/cover no-repeat; filter:blur(10px) brightness(.85); }
   #camCover.off { opacity:0; }
+  /* Dibujo que llega desde el teléfono (encima de la cámara, debajo de la hora y los menús) */
+  #drawing { position:fixed; inset:0; width:100vw; height:100vh; z-index:3; pointer-events:none; transition:opacity .4s; }
+  #drawing.hidden { opacity:0; }
   #camCover .pill { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:flex; align-items:center; gap:.6em;
     background:rgba(0,0,0,.55); padding:.6em 1.2em; border-radius:999px; font-size:clamp(13px,1.1vw,20px); font-weight:600; letter-spacing:.03em; }
   #camCover .pill i { width:.6em; height:.6em; border-radius:50%; background:#ef4444; animation:pulse 1.2s ease-in-out infinite; }
@@ -505,6 +508,43 @@ document.addEventListener('keydown', e => {
   else if (k === 'Escape') window.tvKey('back');
 });
 document.addEventListener('mousemove', wake);
+
+// ---------- Dibujo desde el teléfono (funciona desde cualquier lugar) ----------
+// Puente: Supabase Realtime, solo canal en vivo. La clave del canal la guarda la app de la TV.
+(function drawing() {
+  const key = window.AndroidTV && AndroidTV.drawKey ? AndroidTV.drawKey() : null;
+  if (!key) return;
+  const cv = document.createElement('canvas'); cv.id = 'drawing'; cv.className = 'hidden'; document.body.appendChild(cv);
+  const ctx = cv.getContext('2d'), strokes = [];
+  const size = () => { cv.width = innerWidth; cv.height = innerHeight; paint(); };
+  function paint() {
+    ctx.clearRect(0, 0, cv.width, cv.height); ctx.lineCap = ctx.lineJoin = 'round';
+    const W = cv.width, H = cv.height, sc = W / 1280;
+    ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 6 * sc;
+    strokes.forEach(st => { ctx.strokeStyle = st.c; ctx.lineWidth = st.w * sc; ctx.beginPath();
+      st.p.forEach(([x, y], i) => i ? ctx.lineTo(x * W, y * H) : ctx.moveTo(x * W, y * H));
+      if (st.p.length === 1) ctx.lineTo(st.p[0][0] * W + .01, st.p[0][1] * H);
+      ctx.stroke(); });
+    cv.classList.toggle('hidden', !strokes.length);
+  }
+  addEventListener('resize', size); size();
+  const show = () => { cv.classList.remove('hidden'); if (document.hidden && AndroidTV.bringFront) AndroidTV.bringFront(); };
+  const go = () => {
+    if (!window.supabase) return setTimeout(go, 1000);
+    const sb = supabase.createClient('https://eythwqbeatakgsvjhrbl.supabase.co', 'sb_publishable_CPOL_oOUFhvdJ1sSDqK_Kg_46iP00Cj');
+    const ch = sb.channel('mytv-draw-' + key, { config: { broadcast: { self: false }, presence: { key: 'tv' } } });
+    const find = id => strokes.find(s => s.id === id);
+    ch.on('broadcast', { event:'start' }, ({ payload:p }) => { strokes.push({ id:p.id, c:p.c, w:p.w, p:p.p }); show(); paint(); })
+      .on('broadcast', { event:'pts' }, ({ payload:p }) => { const s = find(p.id); if (s) { s.p.push(...p.p); paint(); } })
+      .on('broadcast', { event:'undo' }, ({ payload:p }) => { const i = strokes.findIndex(s => s.id === p.id); if (i >= 0) strokes.splice(i, 1); paint(); })
+      .on('broadcast', { event:'clear' }, () => { strokes.length = 0; paint(); })
+      .on('broadcast', { event:'hide' }, () => { strokes.length = 0; paint(); })
+      .on('broadcast', { event:'sync' }, ({ payload:p }) => { if (!strokes.length && p.strokes && p.strokes.length) { strokes.push(...p.strokes); paint(); } })
+      .subscribe(st => { if (st === 'SUBSCRIBED') { ch.track({ at: Date.now() }); ch.send({ type:'broadcast', event:'hello', payload:{} }); } });
+    console.log('[MyTV] dibujo: escuchando');
+  };
+  const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js'; sc.onload = go; document.head.appendChild(sc);
+})();
 
 // ---------- Inicio ----------
 renderDock();

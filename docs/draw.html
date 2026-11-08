@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dibujar TV">
+<meta name="theme-color" content="#eef1f5">
+<title>Dibujar en la TV</title>
+<style>
+  /* Lienzo 16:9 (la forma de la TV) arriba, colores y grosores abajo. Mismos fondos claros que el control. */
+  :root { --bg:#eef1f5; --fg:#1a1f29; --muted:#6b7383; --key:#ffffff; --line:#dde2ea; --accent:#2f6fed; --ok:#30d158; color-scheme:light; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; touch-action:manipulation; }
+  html, body { margin:0; background:var(--bg); color:var(--fg); font-family:-apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+  body { padding: calc(env(safe-area-inset-top,0px) + 14px) max(16px, env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 20px) max(16px, env(safe-area-inset-left,0px));
+    max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+  header { display:flex; align-items:center; gap:10px; }
+  header h1 { flex:1; margin:0; font-size:17px; font-weight:600; }
+  #tv { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  #tv i { width:8px; height:8px; border-radius:50%; background:#c4cad4; }
+  #tv.on i { background:var(--ok); }
+  #wrap { position:relative; width:100%; aspect-ratio:16/9; border-radius:18px; overflow:hidden; background:#0d1117; box-shadow:0 1px 2px rgba(20,30,50,.08); }
+  canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
+  #hint { position:absolute; inset:auto 0 10px 0; text-align:center; font-size:12px; color:#8b93a3; pointer-events:none; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .c { width:36px; height:36px; border-radius:50%; border:3px solid var(--key); box-shadow:0 0 0 1px var(--line); padding:0; }
+  .c.sel { box-shadow:0 0 0 2px var(--accent); }
+  .w { height:36px; min-width:44px; border-radius:18px; border:0; background:var(--key); box-shadow:0 0 0 1px var(--line); display:grid; place-items:center; }
+  .w span { display:block; border-radius:50%; background:var(--fg); }
+  .w.sel { box-shadow:0 0 0 2px var(--accent); }
+  .btns { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
+  .b { border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:14px; font-size:15px; box-shadow:0 1px 2px rgba(20,30,50,.06); }
+  .b:active, .w:active { transform:scale(.97); }
+  .b.primary { background:var(--fg); color:var(--bg); }
+  #err { display:none; background:#ffe5e3; color:#9b1c12; padding:12px 14px; border-radius:14px; font-size:14px; }
+  p.note { margin:0; font-size:13px; color:var(--muted); line-height:1.45; }
+</style>
+</head>
+<body>
+<header><h1>Dibujar en la TV</h1><div id="tv"><i></i><span>Buscando la TV…</span></div></header>
+<div id="err"></div>
+<div id="wrap"><canvas id="cv"></canvas><div id="hint">Dibuja aquí: aparece en la TV al instante</div></div>
+<div class="row" id="colors"></div>
+<div class="row" id="widths"></div>
+<div class="btns">
+  <button class="b" id="undo">Deshacer</button>
+  <button class="b" id="clear">Borrar todo</button>
+  <button class="b primary" id="hide">Ocultar en TV</button>
+</div>
+<p class="note">Funciona desde cualquier lugar con internet. La TV tiene que estar prendida para ver el dibujo; si la prendes después, lo recibe al conectarse.</p>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+// Puente en internet: Supabase Realtime (solo canal en vivo, sin base de datos). La clave del canal viene en el enlace (#k=...).
+const SB_URL = 'https://eythwqbeatakgsvjhrbl.supabase.co', SB_KEY = 'sb_publishable_CPOL_oOUFhvdJ1sSDqK_Kg_46iP00Cj';
+const $ = id => document.getElementById(id);
+let key = (location.hash.match(/k=([a-z0-9]+)/) || [])[1];
+try { if (key) localStorage.setItem('mytv-draw', key); else key = localStorage.getItem('mytv-draw'); } catch {}
+if (!key) { $('err').textContent = 'Falta la clave. Abre este enlace desde el control de la TV (botón “Dibujar en la TV”).'; $('err').style.display = 'block'; }
+
+const COLORS = ['#ffffff', '#ffd60a', '#ff6b6b', '#ff9f43', '#4cd964', '#3b9bff', '#b388ff', '#111111'];
+const WIDTHS = [3, 7, 14];
+let color = COLORS[1], width = WIDTHS[1];
+const strokes = [];      // [{id, c, w, p:[[x,y],...]}] en coordenadas 0..1
+const cv = $('cv'), ctx = cv.getContext('2d');
+
+function size() { const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1; cv.width = r.width * d; cv.height = r.height * d; draw(); }
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height); ctx.lineCap = ctx.lineJoin = 'round';
+  const W = cv.width, H = cv.height, s = W / 1280;   // grosor relativo a una TV de 1280 px de ancho
+  strokes.forEach(st => { ctx.strokeStyle = st.c; ctx.lineWidth = st.w * s; ctx.beginPath();
+    st.p.forEach(([x, y], i) => i ? ctx.lineTo(x * W, y * H) : ctx.moveTo(x * W, y * H));
+    if (st.p.length === 1) ctx.lineTo(st.p[0][0] * W + .01, st.p[0][1] * H);
+    ctx.stroke(); });
+}
+new ResizeObserver(size).observe(cv);
+
+COLORS.forEach(c => { const b = document.createElement('button'); b.className = 'c' + (c === color ? ' sel' : ''); b.style.background = c; b.setAttribute('aria-label', 'Color ' + c);
+  b.onclick = () => { color = c; document.querySelectorAll('.c').forEach(x => x.classList.toggle('sel', x === b)); }; $('colors').appendChild(b); });
+WIDTHS.forEach(w => { const b = document.createElement('button'); b.className = 'w' + (w === width ? ' sel' : ''); b.innerHTML = `<span style="width:${w + 2}px;height:${w + 2}px"></span>`; b.setAttribute('aria-label', 'Grosor ' + w);
+  b.onclick = () => { width = w; document.querySelectorAll('.w').forEach(x => x.classList.toggle('sel', x === b)); }; $('widths').appendChild(b); });
+
+// ---- Canal en vivo ----
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+const ch = sb.channel('mytv-draw-' + key, { config: { broadcast: { self: false }, presence: { key: 'phone-' + Math.random().toString(36).slice(2, 8) } } });
+const out = (event, payload) => ch.send({ type:'broadcast', event, payload });
+ch.on('presence', { event:'sync' }, () => {
+  const tv = Object.keys(ch.presenceState()).some(k => k.startsWith('tv'));
+  $('tv').classList.toggle('on', tv); $('tv').querySelector('span').textContent = tv ? 'TV conectada' : 'TV apagada o sin internet';
+});
+ch.on('broadcast', { event:'hello' }, () => out('sync', { strokes }));   // la TV acaba de conectarse: le mando el dibujo completo
+ch.on('broadcast', { event:'sync' }, ({ payload }) => { if (!strokes.length && payload.strokes?.length) { strokes.push(...payload.strokes); draw(); } });
+ch.subscribe(st => { if (st === 'SUBSCRIBED') { ch.track({ at: Date.now() }); out('hello', {}); } });
+
+// ---- Dibujar: se manda en trozos pequeños mientras mueves el dedo ----
+let cur = null, pending = [], timer = null;
+const pt = e => { const r = cv.getBoundingClientRect(); return [+((e.clientX - r.left) / r.width).toFixed(4), +((e.clientY - r.top) / r.height).toFixed(4)]; };
+function flush() { timer = null; if (!cur || !pending.length) return; out('pts', { id: cur.id, p: pending }); pending = []; }
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId); $('hint').style.display = 'none';
+  cur = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), c: color, w: width, p: [pt(e)] };
+  strokes.push(cur); draw(); out('start', { id: cur.id, c: cur.c, w: cur.w, p: cur.p });
+});
+cv.addEventListener('pointermove', e => {
+  if (!cur) return;
+  const p = pt(e), last = cur.p[cur.p.length - 1];
+  if (Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]) < .003) return;
+  cur.p.push(p); pending.push(p); draw();
+  if (!timer) timer = setTimeout(flush, 70);
+});
+const end = () => { if (!cur) return; clearTimeout(timer); flush(); out('end', { id: cur.id }); cur = null; };
+cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+
+$('undo').onclick = () => { const s = strokes.pop(); if (s) { out('undo', { id: s.id }); draw(); } };
+$('clear').onclick = () => { strokes.length = 0; draw(); out('clear', {}); };
+$('hide').onclick = () => { out('hide', {}); };
+['gesturestart','gesturechange','dblclick'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive:false }));
+</script>
+</body>
+</html>
