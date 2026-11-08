@@ -97,6 +97,7 @@ public class HomeWatcherService extends AccessibilityService {
     };
     private boolean screenRegistered = false;
 
+    final DrawOverlay drawOverlay = new DrawOverlay(this);   // dibujo del teléfono encima de cualquier app
     private RemoteServer remote;
     AdbSelf adb;
     @Override protected void onServiceConnected() { super.onServiceConnected();

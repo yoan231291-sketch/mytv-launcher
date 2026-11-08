@@ -85,7 +85,7 @@ final class RemoteServer {
     void start() {
         if (running) return;
         running = true;
-        cloud = new CloudLink(drawKey(svc), this::api);   // control desde cualquier lugar (internet)
+        cloud = new CloudLink(drawKey(svc), this::api, svc.drawOverlay::onEvent);   // control desde cualquier lugar (internet)
         new Thread(() -> {
             try {
                 server = new ServerSocket(PORT);

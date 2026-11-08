@@ -27,17 +27,20 @@ final class CloudLink {
     static final String KEY = "sb_publishable_CPOL_oOUFhvdJ1sSDqK_Kg_46iP00Cj";
 
     interface Api { JSONObject handle(String path, Map<String, String> q) throws Exception; }
+    interface Draw { void onEvent(String event, JSONObject payload); }
 
-    private final String topic;
+    private final String topic, drawTopic;
     private final Api api;
+    private final Draw draw;
     private volatile boolean running = true;
     private Socket sock; private OutputStream out;
     private int ref = 1;
     private final SecureRandom rnd = new SecureRandom();
 
-    CloudLink(String channelKey, Api api) {
+    CloudLink(String channelKey, Api api, Draw draw) {
         this.topic = "realtime:mytv-remote-" + channelKey;
-        this.api = api;
+        this.drawTopic = "realtime:mytv-draw-" + channelKey;
+        this.api = api; this.draw = draw;
         new Thread(this::loop, "mytv-cloud").start();
     }
 
@@ -75,8 +78,12 @@ final class CloudLink {
         JSONObject cfg = new JSONObject().put("config", new JSONObject()
                 .put("broadcast", new JSONObject().put("self", false))
                 .put("presence", new JSONObject().put("key", "tv")));
-        sendMsg(topic, "phx_join", cfg);
-        sendMsg(topic, "presence", new JSONObject().put("type", "presence").put("event", "track").put("payload", new JSONObject().put("at", System.currentTimeMillis())));
+        for (String t : new String[]{ topic, drawTopic }) {
+            sendMsg(t, "phx_join", cfg);
+            sendMsg(t, "presence", new JSONObject().put("type", "presence").put("event", "track").put("payload", new JSONObject().put("at", System.currentTimeMillis())));
+        }
+        // canal de dibujo: aviso que la TV llegó, para que el teléfono mande el dibujo que ya tenga
+        sendMsg(drawTopic, "broadcast", new JSONObject().put("type", "broadcast").put("event", "hello").put("payload", new JSONObject()));
         // latido cada 25 s para que no se corte
         final Socket mine = sock;
         new Thread(() -> {
@@ -110,6 +117,7 @@ final class CloudLink {
             JSONObject m = new JSONObject(raw);
             if (!"broadcast".equals(m.optString("event"))) return;
             JSONObject b = m.getJSONObject("payload");
+            if (drawTopic.equals(m.optString("topic"))) { if (draw != null) draw.onEvent(b.optString("event"), b.optJSONObject("payload")); return; }
             if (!"req".equals(b.optString("event"))) return;
             final JSONObject p = b.getJSONObject("payload");
             new Thread(() -> answer(p)).start();
