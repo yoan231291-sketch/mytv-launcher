@@ -60,7 +60,7 @@ if [ "$MODE" != "--check" ]; then
   S am start -n "$PKG/.MainActivity" >/dev/null; sleep 12
 
   echo "▶ Permiso de foto de la pantalla (se acepta solo, con 'No volver a mostrar')…"
-  LAN=$(S dumpsys activity service $PKG/.HomeWatcherService | grep MYTV_CONTROL_CASA | cut -d= -f2 | tr -d '\r')
+  LAN=$(S dumpsys activity service $PKG/.HomeWatcherService | grep MYTV_CONTROL_CASA | cut -d= -f2- | tr -d '\r')
   curl -s -m 8 "${LAN}api/shot" >/dev/null; sleep 2
   S uiautomator dump /sdcard/mytv-ui.xml >/dev/null 2>&1
   XML=$(S cat /sdcard/mytv-ui.xml)
@@ -74,8 +74,10 @@ if [ "$MODE" != "--check" ]; then
 fi
 
 echo "▶ Revisión"
+L0=$(S dumpsys activity service $PKG/.HomeWatcherService | grep MYTV_CONTROL_CASA | cut -d= -f2- | tr -d '\r')
+curl -s -m 8 "${L0}api/shot" >/dev/null; sleep 3; curl -s -m 8 "${L0}api/shot" >/dev/null   # tras reiniciar, el permiso de foto se renueva solo
 DUMP=$(S dumpsys activity service $PKG/.HomeWatcherService | tr -d '\r')
-LAN=$(echo "$DUMP" | grep MYTV_CONTROL_CASA | cut -d= -f2); NET=$(echo "$DUMP" | grep MYTV_CONTROL_INTERNET | cut -d= -f2); DRAW=$(echo "$DUMP" | grep MYTV_DIBUJO | cut -d= -f2)
+LAN=$(echo "$DUMP" | grep MYTV_CONTROL_CASA | cut -d= -f2-); NET=$(echo "$DUMP" | grep MYTV_CONTROL_INTERNET | cut -d= -f2-); DRAW=$(echo "$DUMP" | grep MYTV_DIBUJO | cut -d= -f2-)
 [ -n "$LAN" ] && ok "Servicio de inicio activo" || bad "Servicio de inicio NO activo (repite la instalación)"
 [ "$(S settings get secure default_input_method | tr -d '\r')" = "$PKG/.RemoteIme" ] && ok "Teclado de control activo" || bad "Teclado de control no activo"
 echo "$DUMP" | grep -q "MYTV_FOTO=lista" && ok "Foto de la pantalla lista" || bad "Foto de la pantalla sin permiso (aparece en la TV: acepta 'Iniciar ahora')"
