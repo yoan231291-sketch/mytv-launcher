@@ -308,8 +308,13 @@ $('power').onclick = async () => {
   await send('power'); toast(wasOn ? 'Apagando la TV' : 'Prendiendo la TV');
   setTimeout(() => { b.classList.remove('busy'); loadState(); loadBt(); }, 2500);
 };
-$('alexa').onclick = async () => { const b = $('alexa'); b.classList.add('listening'); await send('alexa');
-  toast('Alexa te escucha por el micrófono de la TV: habla cerca de la TV'); setTimeout(() => b.classList.remove('listening'), 6000); };
+// Alexa: Amazon no deja que otra app active la escucha de la TV. Este botón abre la app de Alexa del teléfono
+// (funciona desde cualquier lugar): di por ejemplo "Alexa, pon Netflix en Living room TV".
+$('alexa').onclick = () => {
+  const b = $('alexa'); b.classList.add('listening'); setTimeout(() => b.classList.remove('listening'), 2500);
+  const t0 = Date.now(); location.href = 'alexa://';
+  setTimeout(() => { if (!document.hidden && Date.now() - t0 < 2500) { toast('Instala la app Amazon Alexa para hablarle a la TV'); location.href = 'https://apps.apple.com/app/amazon-alexa/id944011620'; } }, 1500);
+};
 $('typeForm').onsubmit = async e => { e.preventDefault(); const v = $('typeIn').value.trim(); if (!v) return; await send('text', v); $('typeIn').value = ''; toast('Escrito en la TV'); };
 loadState(); setInterval(() => { if (!document.hidden) loadState(); }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadState(); });
