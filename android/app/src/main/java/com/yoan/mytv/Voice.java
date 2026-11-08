@@ -21,6 +21,9 @@ final class Voice {
     static Plan plan(String raw, String appsJson, String citiesCsv) {
         String t = norm(raw).replaceFirst("^(oye |hey )?alexa,? ", "");
         Matcher m;
+        // recorrido (va primero: "para el recorrido" no es "pausa")
+        if (t.matches(".*\\b(para|apaga|quita|deten|stop)\\b.*\\b(recorrido|rotar|rotacion|tour)\\b.*")) return new Plan("Recorrido apagado", new String[]{"mosaic", "0"});
+        if (t.matches(".*\\b(recorrido|recorre|rota|rotar|tour|varias ciudades|cambia de ciudad)\\b.*")) return new Plan("Recorrido: otra ciudad cada 3 minutos", new String[]{"mosaic", "1"});
         // encendido
         if (t.matches("^(apaga|apagala|apagar|turn off|power off)$") || t.matches(".*\\b(apaga|apagar|turn off|power off)\\b.*\\b(tv|tele|television|pantalla)\\b.*"))
             return new Plan("Apagando la TV", new String[]{"power_off", ""});
@@ -38,9 +41,6 @@ final class Voice {
         // navegación
         if (t.matches("^(ve al |ir al |vuelve al )?(inicio|casa|home|go home)$")) return new Plan("Inicio", new String[]{"home", ""});
         if (t.matches("^(atras|regresa|vuelve|go back|back)$")) return new Plan("Atrás", new String[]{"back", ""});
-        // vista de 4 ciudades
-        if (t.matches(".*\\b(para|apaga|quita|deten|stop)\\b.*\\b(recorrido|rotar|rotacion|tour)\\b.*")) return new Plan("Recorrido apagado", new String[]{"mosaic", "0"});
-        if (t.matches(".*\\b(recorrido|recorre|rota|rotar|tour|varias ciudades|cambia de ciudad)\\b.*")) return new Plan("Recorrido: otra ciudad cada 3 minutos", new String[]{"mosaic", "1"});
         // ciudades / cámaras
         m = Pattern.compile("\\b(?:camara|ciudad|camera|city)(?: de| en| of)? (.+)$").matcher(t);
         if (m.find()) { String id = city(m.group(1), citiesCsv); if (id != null) return new Plan("Cámara de " + m.group(1), new String[]{"city", id}); }
