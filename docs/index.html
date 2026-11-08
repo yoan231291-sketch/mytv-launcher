@@ -52,6 +52,7 @@
   @keyframes pulse { 50% { opacity:.35; } }
   .live .spot { font-weight:400; color:var(--muted); }
   /* Hora y temperatura de donde está la TV: grandes, en negrita y siempre visibles (también en modo cine) */
+  #local.float { right:auto; transition: left 55s linear, top 55s linear; }
   #local { position:fixed; top:3.2vh; right:3.5vw; text-align:right; z-index:4; pointer-events:none; line-height:1;
     text-shadow:0 2px 6px rgba(0,0,0,.75), 0 0 28px rgba(0,0,0,.45); font-variant-numeric:tabular-nums; }
   #local .lt { font-size:clamp(56px,7.6vw,150px); font-weight:800; letter-spacing:-.03em; }
@@ -622,6 +623,21 @@ document.addEventListener('mousemove', wake);
 
 // ---------- Dibujo desde el teléfono ----------
 // Lo pinta la app de la TV en una capa encima de CUALQUIER app (no aquí), así no interrumpe lo que se está viendo.
+
+// ---------- Hora y temperatura flotando despacio por la pantalla (no tapan siempre el mismo lugar) ----------
+(function floatClock() {
+  const el = $('local'); if (!el) return;
+  const place = () => {
+    const r = el.getBoundingClientRect(), pad = innerHeight * 0.03;
+    const x = pad + Math.random() * Math.max(0, innerWidth - r.width - pad * 2);
+    const y = pad + Math.random() * Math.max(0, innerHeight - r.height - pad * 2);
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+  };
+  // empieza donde estaba (arriba a la derecha) y desde ahí se mueve
+  const r0 = el.getBoundingClientRect(); el.style.left = r0.left + 'px'; el.style.top = r0.top + 'px'; el.classList.add('float');
+  setTimeout(place, 1500); setInterval(place, 55000);
+  addEventListener('resize', place);
+})();
 
 // ---------- Inicio ----------
 renderDock();
