@@ -450,7 +450,7 @@ function mosaicCell(m, slot, c) {
     playerVars: { autoplay:1, mute:1, controls:0, disablekb:1, fs:0, iv_load_policy:3, modestbranding:1, playsinline:1, rel:0, origin: location.origin },
     events: {
       onReady: e => { e.target.mute(); e.target.playVideo(); },
-      onStateChange: e => { if (e.data === 1) { rec.playingAt = Date.now(); setTimeout(() => hideCell(slot), 1500); setTimeout(() => hideCell(slot), 8000); } },
+      onStateChange: e => { if (e.data === 1) { rec.playingAt = Date.now(); setTimeout(() => hideCell(slot), 1500 + slot * 1200); setTimeout(() => hideCell(slot), 8000 + slot * 1200); } },
       onError: () => swapCell(slot)
     }
   });
@@ -483,9 +483,9 @@ function hideCell(slot) {
   const f = document.querySelector(`#mosaic .cell:nth-child(${slot + 1}) iframe`); if (!f) return;
   const r = f.getBoundingClientRect(); f.style.pointerEvents = 'auto';
   AndroidTV.hoverAt((r.left + r.width / 2) / innerWidth, (r.top + r.height / 2) / innerHeight);
-  setTimeout(() => { f.style.pointerEvents = 'none'; }, 350);
+  setTimeout(() => { f.style.pointerEvents = 'none'; }, 600);
 }
-setInterval(() => { if (mosaic && !bg && !ov) mosaicPlayers.forEach((p, i) => setTimeout(() => hideCell(i), i * 1000)); }, 40000);
+setInterval(() => { if (mosaic && !bg && !ov) mosaicPlayers.forEach((p, i) => setTimeout(() => hideCell(i), i * 1200)); }, 20000);
 // Rotación: cada cámara dura como máximo 3 minutos y se cambia sola por otra ciudad (sin salir de la vista).
 // Las celdas se turnan (una cada minuto y medio) para que nunca cambien las dos a la vez.
 const ROTATE_MS = 3 * 60e3;

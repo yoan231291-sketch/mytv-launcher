@@ -311,8 +311,11 @@ public class MainActivity extends Activity {
                 final float x = web.getWidth() * xf, y = web.getHeight() * yf;
                 hover(MotionEvent.ACTION_HOVER_ENTER, x, y);
                 ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_MOVE, x + 8, y + 6), 100);
-                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_MOVE, x + 12, y + 10), 650);
-                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_EXIT, x + 12, y + 10), 750);
+                // el puntero sale del video hacia la franja negra de arriba (fuera de cualquier video) y desaparece
+                final float out = web.getHeight() * 0.02f;
+                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_MOVE, x, y * 0.5f), 450);
+                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_MOVE, x, out), 650);
+                ui.postDelayed(() -> hover(MotionEvent.ACTION_HOVER_EXIT, x, out), 800);
             });
         }
 
