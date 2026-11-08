@@ -38,9 +38,16 @@ final class ScreenCap {
     }
 
     /** JPEG en base64 (data URL) de 480x270, o null si aún no hay permiso o falló. */
-    static synchronized String shot() {
+    static String shot() {
+        Bitmap b = bitmap(480, 270); if (b == null) return null;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        b.compress(Bitmap.CompressFormat.JPEG, 62, out);
+        return "data:image/jpeg;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+    }
+
+    /** Foto de la pantalla del tamaño pedido (o null). */
+    static synchronized Bitmap bitmap(final int w, final int h) {
         MediaProjection mp = projection; if (mp == null) return null;
-        final int w = 480, h = 270;
         ImageReader ir = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 2);
         final Image[] got = new Image[1]; final CountDownLatch done = new CountDownLatch(1);
         Handler hd = new Handler(thread.getLooper());
@@ -54,10 +61,7 @@ final class ScreenCap {
             int rowPad = pl.getRowStride() - pl.getPixelStride() * w;
             Bitmap bmp = Bitmap.createBitmap(w + rowPad / pl.getPixelStride(), h, Bitmap.Config.ARGB_8888);
             bmp.copyPixelsFromBuffer(buf); img.close();
-            Bitmap crop = Bitmap.createBitmap(bmp, 0, 0, w, h);
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            crop.compress(Bitmap.CompressFormat.JPEG, 62, out);
-            return "data:image/jpeg;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+            return Bitmap.createBitmap(bmp, 0, 0, w, h);
         } catch (Exception e) {
             android.util.Log.i("MyTV", "foto: " + e);
             if (e instanceof SecurityException) projection = null;

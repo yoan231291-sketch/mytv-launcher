@@ -200,8 +200,21 @@ public class MainActivity extends Activity {
         return super.dispatchKeyEvent(e);
     }
 
+    // Foto de MyTV cada 30 s mientras está al frente: es la "tapa" que se ve si aparece el inicio de Amazon
+    private final Runnable snap = new Runnable() {
+        @Override public void run() {
+            if (front && !dozing) {
+                if (ScreenCap.projection == null) ScreenCap.ask(MainActivity.this);
+                else new Thread(() -> { android.graphics.Bitmap b = ScreenCap.bitmap(960, 540); if (b != null && front) HomeCover.lastMyTv = b; }).start();
+            }
+            ui.postDelayed(this, 30_000);
+        }
+    };
+
     @Override protected void onResume() {
-        super.onResume(); front = true; hideSystemUi(); web.onResume(); web.resumeTimers();
+        super.onResume(); front = true;
+        HomeWatcherService hw = HomeWatcherService.instance; if (hw != null) hw.cover.hide();
+        ui.removeCallbacks(snap); ui.postDelayed(snap, 6_000); hideSystemUi(); web.onResume(); web.resumeTimers();
         lastAlive = System.currentTimeMillis();           // le damos 2 min para arrancar al volver
         android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
         if (pm == null || pm.isInteractive()) { lastInput = System.currentTimeMillis(); wake(); }   // al prender la TV o volver de otra app cuenta como actividad
@@ -212,7 +225,7 @@ public class MainActivity extends Activity {
     // Al abrir otra app pausamos solo esta vista (NO pauseTimers: es global y en Fire TV a veces no se reanuda → pantalla negra)
     // Al abrir otra app: la página DETIENE la cámara y sus vigilantes (si no, sigue cargando videos en segundo plano,
     // le quita el decodificador de video a la otra app y esa app se congela a ratos).
-    @Override protected void onPause() { super.onPause(); front = false; }
+    @Override protected void onPause() { super.onPause(); front = false; ui.removeCallbacks(snap); }
     @Override protected void onDestroy() { if (current == this) current = null; try { unregisterReceiver(screenOff); } catch (Exception ignored) { } super.onDestroy(); }
     @Override protected void onStop() {
         super.onStop(); ui.removeCallbacks(watchdog); ui.removeCallbacks(idleCheck);

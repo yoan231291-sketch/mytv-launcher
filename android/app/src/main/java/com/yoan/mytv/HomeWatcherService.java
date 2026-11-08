@@ -31,6 +31,7 @@ public class HomeWatcherService extends AccessibilityService {
         long now = SystemClock.elapsedRealtime();
         if (now < allowUntil || now - lastLaunch < 1500) return;
         lastLaunch = now; android.util.Log.i("MyTV", "inicio de Amazon detectado: abriendo MyTV");
+        cover.show();
         startActivity(new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
     }
@@ -80,6 +81,7 @@ public class HomeWatcherService extends AccessibilityService {
                 if (AMAZON_HOME.equals(foreground()) && now >= allowUntil && now - lastLaunch > 3000) {
                     lastLaunch = now;
                     android.util.Log.i("MyTV", "inicio de Amazon al frente (revisión): abriendo MyTV");
+                    cover.show();
                     startActivity(new Intent(HomeWatcherService.this, MainActivity.class)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
                 }
@@ -97,10 +99,12 @@ public class HomeWatcherService extends AccessibilityService {
     };
     private boolean screenRegistered = false;
 
+    static volatile HomeWatcherService instance;
+    final HomeCover cover = new HomeCover(this);            // tapa el inicio de Amazon mientras abre MyTV
     final DrawOverlay drawOverlay = new DrawOverlay(this);   // dibujo del teléfono encima de cualquier app
     private RemoteServer remote;
     AdbSelf adb;
-    @Override protected void onServiceConnected() { super.onServiceConnected();
+    @Override protected void onServiceConnected() { super.onServiceConnected(); instance = this;
         if (remote == null) { remote = new RemoteServer(this); remote.start(); Bluetooth.init(this); }
         if (!screenRegistered) { android.content.IntentFilter f = new android.content.IntentFilter(Intent.ACTION_SCREEN_ON); f.addAction(Intent.ACTION_SCREEN_OFF); registerReceiver(screen, f); screenRegistered = true; } h.removeCallbacks(poll); h.postDelayed(poll, 4000); }
     @Override public void onDestroy() { if (screenRegistered) { try { unregisterReceiver(screen); } catch (Exception ignored) { } } if (remote != null) remote.stop(); h.removeCallbacks(poll); super.onDestroy(); }
