@@ -64,6 +64,10 @@
   .btdev em { font-style:normal; font-size:13px; color:var(--muted); }
   .btdev.on svg, .btdev.on em { color:var(--accent); }
   .btdev.busy em { color:#ffd60a; }
+  .type { display:flex; gap:8px; margin-top:12px; }
+  .type input { flex:1; min-width:0; border:0; border-radius:14px; background:#1c1c1e; color:var(--fg); padding:14px; font-size:16px; }
+  .type .pill { flex:none; padding:14px 18px; }
+  #keysNote { display:none; margin-top:12px; background:#2a2410; color:#ffd60a; padding:12px 14px; border-radius:14px; font-size:14px; line-height:1.4; }
   #err { display:none; background:#2c1414; color:#ff9f9a; padding:14px; border-radius:14px; margin-bottom:14px; font-size:14px; line-height:1.4; }
 </style>
 </head>
@@ -95,6 +99,9 @@
   <button class="pill" data-k="cam">📷 Otra cámara</button>
   <button class="pill" data-k="mute">🔇 Silenciar</button>
 </div>
+
+<form id="typeForm" class="type"><input id="typeIn" type="text" placeholder="Escribir en la TV (buscar en YouTube…)" autocomplete="off" autocapitalize="off" enterkeyhint="send"><button class="pill" type="submit">Enviar</button></form>
+<div id="keysNote"></div>
 
 <h2>Bluetooth</h2>
 <div id="bt"><button class="btdev" id="btload"><span>Buscando equipos…</span></button></div>
@@ -202,13 +209,17 @@ loadBt();
 // Encendido: verde = TV prendida. Tocar prende o apaga la TV.
 async function loadState() {
   try { const r = await fetch(`/api/state?t=${encodeURIComponent(token || '')}`, { cache:'no-store' }); if (!r.ok) return;
-    const j = await r.json(); setOnline(true); $('power').classList.toggle('on', !!j.on); } catch { setOnline(false); $('power').classList.remove('on'); }
+    const j = await r.json(); setOnline(true); $('power').classList.toggle('on', !!j.on);
+    const n = $('keysNote');
+    if (j.keys === 'esperando permiso') { n.textContent = 'Falta un paso en la TV: aparece “¿Permitir depuración?”. Marca “Permitir siempre” y acepta. Es solo una vez y hace que las flechas funcionen dentro de YouTube, Netflix y cualquier app.'; n.style.display = 'block'; }
+    else n.style.display = 'none'; } catch { setOnline(false); $('power').classList.remove('on'); }
 }
 $('power').onclick = async () => {
   const b = $('power'); b.classList.add('busy'); const wasOn = b.classList.contains('on');
   await send('power'); toast(wasOn ? 'Apagando la TV' : 'Prendiendo la TV');
   setTimeout(() => { b.classList.remove('busy'); loadState(); loadBt(); }, 2500);
 };
+$('typeForm').onsubmit = async e => { e.preventDefault(); const v = $('typeIn').value.trim(); if (!v) return; await send('text', v); $('typeIn').value = ''; toast('Escrito en la TV'); };
 loadState(); setInterval(() => { if (!document.hidden) loadState(); }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadState(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadBt(); });

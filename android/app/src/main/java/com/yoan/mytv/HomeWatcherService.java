@@ -98,8 +98,10 @@ public class HomeWatcherService extends AccessibilityService {
     private boolean screenRegistered = false;
 
     private RemoteServer remote;
+    AdbSelf adb;
     @Override protected void onServiceConnected() { super.onServiceConnected();
         if (remote == null) { remote = new RemoteServer(this); remote.start(); Bluetooth.init(this); }
+        if (adb == null) adb = new AdbSelf(this);
         if (!screenRegistered) { android.content.IntentFilter f = new android.content.IntentFilter(Intent.ACTION_SCREEN_ON); f.addAction(Intent.ACTION_SCREEN_OFF); registerReceiver(screen, f); screenRegistered = true; } h.removeCallbacks(poll); h.postDelayed(poll, 4000); }
     @Override public void onDestroy() { if (screenRegistered) { try { unregisterReceiver(screen); } catch (Exception ignored) { } } if (remote != null) remote.stop(); h.removeCallbacks(poll); super.onDestroy(); }
 

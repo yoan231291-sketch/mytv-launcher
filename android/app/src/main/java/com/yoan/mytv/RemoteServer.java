@@ -102,7 +102,7 @@ final class RemoteServer {
             JSONObject res = new JSONObject();
             if (path.equals("/api/apps")) res.put("apps", new JSONArray(Apps.list(svc)));
             else if (path.equals("/api/bt")) res.put("devices", Bluetooth.list());
-            else if (path.equals("/api/state")) res.put("on", screenOn());
+            else if (path.equals("/api/state")) res.put("on", screenOn()).put("keys", svc.adb == null ? "sin conectar" : svc.adb.state());
             else if (path.equals("/api/cmd")) res = command(q.get("k"), q.get("v"));
             else { send(out, 404, "text/plain", "no".getBytes()); return; }
             send(out, 200, "application/json; charset=utf-8", res.toString().getBytes("UTF-8"));
@@ -117,22 +117,31 @@ final class RemoteServer {
         boolean front = a != null && a.isFront();
         AudioManager am = (AudioManager) svc.getSystemService(Context.AUDIO_SERVICE);
         switch (k) {
-            case "up": case "down": case "left": case "right": case "ok":
-                if (front) {
-                    int code = k.equals("up") ? KeyEvent.KEYCODE_DPAD_UP : k.equals("down") ? KeyEvent.KEYCODE_DPAD_DOWN
-                            : k.equals("left") ? KeyEvent.KEYCODE_DPAD_LEFT : k.equals("right") ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_ENTER;
-                    a.remoteKey(code);
-                } else r.put("ok", false).put("msg", "Las flechas solo mueven MyTV. En otras apps usa Atrás/Inicio o la app oficial de Fire TV.");
+            case "up": case "down": case "left": case "right": case "ok": {
+                int code = k.equals("up") ? KeyEvent.KEYCODE_DPAD_UP : k.equals("down") ? KeyEvent.KEYCODE_DPAD_DOWN
+                        : k.equals("left") ? KeyEvent.KEYCODE_DPAD_LEFT : k.equals("right") ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_DPAD_CENTER;
+                if (front) a.remoteKey(code == KeyEvent.KEYCODE_DPAD_CENTER ? KeyEvent.KEYCODE_ENTER : code);   // MyTV: directo, sin demora
+                else if (!key(code)) r.put("ok", false).put("msg", adbMsg());
                 break;
+            }
             case "back":
-                if (front) a.remoteJs("tvKey('back')"); else svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
+                if (front) a.remoteJs("tvKey('back')");
+                else if (!key(KeyEvent.KEYCODE_BACK)) svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
                 break;
             case "home": openMyTV(); break;
-            case "playpause": case "ff": case "rew":
-                if (front && !k.equals("playpause")) a.remoteJs("tvKey('" + k + "')");
-                else if (front) a.remoteJs("tvKey('playpause')");
-                else media(am, k.equals("playpause") ? KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE : k.equals("ff") ? KeyEvent.KEYCODE_MEDIA_FAST_FORWARD : KeyEvent.KEYCODE_MEDIA_REWIND);
+            case "playpause": case "ff": case "rew": {
+                int code = k.equals("playpause") ? KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE : k.equals("ff") ? KeyEvent.KEYCODE_MEDIA_FAST_FORWARD : KeyEvent.KEYCODE_MEDIA_REWIND;
+                if (front) a.remoteJs("tvKey('" + k + "')");
+                else if (!key(code)) media(am, code);
                 break;
+            }
+            case "text": {   // escribir en buscadores (YouTube, Netflix…): solo letras sin acentos, números y signos simples
+                String t = v == null ? "" : java.text.Normalizer.normalize(v, java.text.Normalizer.Form.NFD).replaceAll("[^A-Za-z0-9 .,@_\\-]", "");
+                if (t.isEmpty()) { r.put("ok", false).put("msg", "Nada que escribir"); break; }
+                if (!svc.adb.ready()) { r.put("ok", false).put("msg", adbMsg()); break; }
+                svc.adb.run("input text '" + t.replace(" ", "%s") + "'");
+                break;
+            }
             case "volup": am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI); break;
             case "voldown": am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI); break;
             case "mute": am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI); break;
@@ -171,6 +180,14 @@ final class RemoteServer {
             default: r.put("ok", false);
         }
         return r;
+    }
+
+    /** Tecla a cualquier app por ADB local. */
+    private boolean key(int code) { return svc.adb != null && svc.adb.ready() && svc.adb.run("input keyevent " + code); }
+    private String adbMsg() {
+        String st = svc.adb == null ? "sin conectar" : svc.adb.state();
+        return st.equals("esperando permiso") ? "En la TV aparece “¿Permitir depuración?”: marca “Permitir siempre” y acepta (solo una vez)."
+                : "Conectando el control con la TV… inténtalo en unos segundos.";
     }
 
     private boolean screenOn() {
