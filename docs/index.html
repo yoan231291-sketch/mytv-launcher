@@ -353,7 +353,7 @@ function onYouTubeIframeAPIReady() {
     videoId: (cams = buildCams(city()))[0] || city().cams[0],
     playerVars: { autoplay:1, mute:1, controls:0, disablekb:1, fs:0, iv_load_policy:3, modestbranding:1, playsinline:1, rel:0, origin: location.origin },
     events: {
-      onReady: e => { log('player listo'); fitCam(); playerReady = true; selectCity(cityIdx); },
+      onReady: e => { log('player listo'); fitCam(); playerReady = true; if (mosaic) { try { player.stopVideo(); } catch {} } selectCity(cityIdx); },
       onStateChange: e => {
         log('estado', e.data);
         if (e.data === YT.PlayerState.PLAYING) { failCount = 0; skips = 0; clearTimeout(coverT); coverT = setTimeout(coverOff, 3000); setTimeout(hideYtControls, 1200); }
@@ -467,10 +467,13 @@ function mosaicCell(m, slot, c) {
 function swapCell(slot) {
   const m = $('mosaic'); const old = mosaicPlayers[slot]; if (!m || !old) return;
   mosaicSkip.add(old.city); clearInterval(old.watch); try { old.player.destroy(); } catch {}
-  const c = mosaicPick(mosaicPlayers.filter(Boolean).map(p => p.city)); if (c) mosaicCell(m, slot, c);
+  let c = mosaicPick(mosaicPlayers.filter(Boolean).map(p => p.city));
+  if (!c) { mosaicSkip.clear(); c = mosaicPick(mosaicPlayers.filter(Boolean).map(p => p.city)); }
+  if (c) mosaicCell(m, slot, c);
 }
 function buildMosaic() {
   clearMosaic();
+  if (mosaic) { try { player.stopVideo(); } catch {} }   // la cámara principal NO debe ocupar uno de los 2 decodificadores
   if (!mosaic || bg || !window.YT || !YT.Player) return;
   const m = document.createElement('div'); m.id = 'mosaic'; document.body.appendChild(m);
   const used = [];
@@ -489,6 +492,9 @@ setInterval(() => { if (mosaic && !bg && !ov) mosaicPlayers.forEach((p, i) => se
 // Rotación: cada cámara dura como máximo 3 minutos y se cambia sola por otra ciudad (sin salir de la vista).
 // Las celdas se turnan (una cada minuto y medio) para que nunca cambien las dos a la vez.
 const ROTATE_MS = 3 * 60e3;
+setInterval(() => mosaicSkip.clear(), 15 * 60e3);   // las cámaras descartadas se vuelven a probar cada 15 min
+// Por si la cámara principal intenta arrancar sola mientras se ven varias ciudades: se detiene
+setInterval(() => { try { if (mosaic && !bg && playerReady && [1, 3].includes(player.getPlayerState())) { player.stopVideo(); log('principal detenida (vista de ciudades)'); } } catch {} }, 3000);
 setInterval(() => {
   if (!mosaic || bg) return;
   const now = Date.now();
