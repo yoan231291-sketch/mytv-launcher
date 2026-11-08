@@ -102,6 +102,7 @@ final class RemoteServer {
             JSONObject res = new JSONObject();
             if (path.equals("/api/apps")) res.put("apps", new JSONArray(Apps.list(svc)));
             else if (path.equals("/api/bt")) res.put("devices", Bluetooth.list());
+            else if (path.equals("/api/state")) res.put("on", screenOn());
             else if (path.equals("/api/cmd")) res = command(q.get("k"), q.get("v"));
             else { send(out, 404, "text/plain", "no".getBytes()); return; }
             send(out, 200, "application/json; charset=utf-8", res.toString().getBytes("UTF-8"));
@@ -152,10 +153,29 @@ final class RemoteServer {
                 if (err != null) r.put("ok", false).put("msg", err);
                 break;
             }
+            case "power":
+                if (!screenOn()) {      // prender: despierta la pantalla y abre MyTV
+                    android.os.PowerManager pm = (android.os.PowerManager) svc.getSystemService(Context.POWER_SERVICE);
+                    @SuppressWarnings("deprecation") android.os.PowerManager.WakeLock wl = pm.newWakeLock(
+                            android.os.PowerManager.FULL_WAKE_LOCK | android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP, "mytv:remote-power");
+                    wl.acquire(5000);
+                    openMyTV();
+                    r.put("on", true);
+                } else {                // apagar: igual que el botón de encendido del control
+                    boolean ok = svc.performGlobalAction(8 /* GLOBAL_ACTION_LOCK_SCREEN (Android 9+) */);
+                    r.put("on", !ok);
+                    if (!ok) r.put("ok", false).put("msg", "No se pudo apagar desde aquí");
+                }
+                break;
             case "btsettings": Bluetooth.openSettings(svc); break;
             default: r.put("ok", false);
         }
         return r;
+    }
+
+    private boolean screenOn() {
+        android.os.PowerManager pm = (android.os.PowerManager) svc.getSystemService(Context.POWER_SERVICE);
+        return pm == null || pm.isInteractive();
     }
 
     private void openMyTV() {
