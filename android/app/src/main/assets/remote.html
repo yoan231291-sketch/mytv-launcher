@@ -87,6 +87,12 @@
   #now.on .info b::before { background:var(--ok); }
   #now .info span { font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #err { display:none; background:var(--err-bg); color:var(--err-fg); padding:14px; border-radius:14px; margin-bottom:14px; font-size:14px; line-height:1.4; }
+  .howto { background:var(--key); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow); font-size:14px; line-height:1.45; }
+  .howto summary { font-weight:600; cursor:pointer; }
+  .howto ol { padding-left:20px; margin:10px 0; display:flex; flex-direction:column; gap:8px; }
+  .howto code { font-size:12px; background:var(--key-on); padding:2px 5px; border-radius:6px; word-break:break-all; -webkit-user-select:text; user-select:text; }
+  .howto .note { color:var(--muted); font-size:13px; margin:0; }
+  .pill.mini { padding:6px 10px; font-size:13px; margin-left:4px; }
   .themes { display:flex; gap:12px; flex-wrap:wrap; }
   .sw { width:44px; height:44px; border-radius:50%; border:2px solid var(--line); padding:0; position:relative; }
   .sw.sel { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
@@ -144,6 +150,18 @@
 
 <h2>Ciudades</h2>
 <div id="cities"></div>
+
+<h2>Aviso al salir de casa</h2>
+<details class="howto"><summary>Que el iPhone me avise si dejé la TV prendida</summary>
+<ol>
+  <li>Abre la app <b>Atajos</b> → <b>Automatización</b> → <b>+</b> → <b>Salir</b>. Ubicación: <b>Casa</b>. Elige <b>Ejecutar inmediatamente</b> → Siguiente → <b>Nuevo atajo en blanco</b>.</li>
+  <li>Agrega <b>Obtener contenido de URL</b> y pega este enlace: <code id="statusUrl">…</code> <button class="pill mini" id="copyStatus" type="button">Copiar</button></li>
+  <li>Agrega <b>Obtener valor del diccionario</b>: clave <code>mensaje</code>.</li>
+  <li>Agrega <b>Si</b>: “Valor del diccionario” <b>tiene cualquier valor</b>.</li>
+  <li>Dentro del Si agrega <b>Mostrar notificación</b> con “Valor del diccionario”. Listo.</li>
+</ol>
+<p class="note">Al salir de casa, el iPhone le pregunta a la TV si está prendida. Solo te avisa si lo está.</p>
+</details>
 
 <h2>Fondo</h2>
 <div class="themes" id="themes"></div>
@@ -315,6 +333,7 @@ loadBt();
 async function loadState() {
   try { const j = await api('state'); setOnline(true); $('power').classList.toggle('on', !!j.on);
     if (j.draw) $('drawLink').href = j.draw;
+    const ok = (j.online || '').match(/k=([a-z0-9]+)/); if (ok) $('statusUrl').textContent = 'https://eythwqbeatakgsvjhrbl.supabase.co/functions/v1/mytv-status?k=' + ok[1];
     if (j.online && !ONLINE) { $('onlineLink').href = j.online; $('onlineLink').hidden = false; }
     const n = $('keysNote');
     if (j.keys === 'esperando permiso') { n.textContent = 'Falta un paso en la TV: aparece “¿Permitir depuración?”. Marca “Permitir siempre” y acepta. Es solo una vez y hace que las flechas funcionen dentro de YouTube, Netflix y cualquier app.'; n.style.display = 'block'; }
@@ -353,6 +372,7 @@ $('alexa').onclick = () => {
   try { rec.start(); } catch { rec = null; $('voiceForm').hidden = false; $('voiceIn').focus(); }
 };
 $('voiceForm').onsubmit = e => { e.preventDefault(); sayToTv($('voiceIn').value); $('voiceIn').value = ''; };
+$('copyStatus').onclick = async () => { try { await navigator.clipboard.writeText($('statusUrl').textContent); toast('Enlace copiado'); } catch { toast('Mantén presionado el enlace para copiarlo'); } };
 $('typeForm').onsubmit = async e => { e.preventDefault(); const v = $('typeIn').value.trim(); if (!v) return; await send('text', v); $('typeIn').value = ''; toast('Escrito en la TV'); };
 // Pantallita: qué se ve en la TV ahora (foto cada 10 s mientras miras el control) y si está prendida
 async function loadNow() {
