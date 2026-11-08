@@ -164,7 +164,8 @@ public class MainActivity extends Activity {
     private void load() {
         offline = false;
         lastAlive = System.currentTimeMillis();
-        web.loadUrl(BuildConfig.LAUNCHER_URL + "?v=" + BuildConfig.VERSION_CODE);
+        // "&t=" cambia cada minuto: así la TV siempre carga la última versión de la página (no la del caché)
+        web.loadUrl(BuildConfig.LAUNCHER_URL + "?v=" + BuildConfig.VERSION_CODE + "&t=" + (System.currentTimeMillis() / 60000));
     }
 
     /** Sin internet: carga una pantalla local con las apps y reintenta cada 15 s. */
