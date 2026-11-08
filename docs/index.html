@@ -24,6 +24,12 @@
   /* La miniatura es de baja resolución: un leve desenfoque la hace ver como una foto de fondo y no pixelada */
   #camCover::before { content:""; position:absolute; inset:-30px; background:var(--img, none) center/cover no-repeat; filter:blur(10px) brightness(.85); }
   #camCover.off { opacity:0; }
+  /* Vista de 4 ciudades a la vez (opcional) */
+  #mosaic { position:fixed; inset:0; z-index:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:4px; background:#000; }
+  #mosaic .cell { position:relative; overflow:hidden; background:#0b0d12 center/cover no-repeat; }
+  #mosaic iframe { position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:none; }
+  #mosaic .lbl { position:absolute; left:2.2vh; bottom:2vh; font-weight:700; font-size:clamp(14px,2.2vh,30px); color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.7); display:flex; gap:.5em; align-items:baseline; }
+  #mosaic .lbl small { font-weight:600; opacity:.85; font-size:.8em; }
   /* Dibujo que llega desde el teléfono (encima de la cámara, debajo de la hora y los menús) */
   #drawing { position:fixed; inset:0; width:100vw; height:100vh; z-index:3; pointer-events:none; transition:opacity .4s; }
   #drawing.hidden { opacity:0; }
@@ -152,6 +158,8 @@ const log = (...a) => console.log('[MyTV]', ...a);
 
 // ---------- Íconos (SVG simples, estilo tvOS) ----------
 const ICON = {
+  quad:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M12 4v16M3 12h18"/></svg>',
+  single:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2.5"/></svg>',
   globe:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg>',
   grid:'<svg viewBox="0 0 24 24" fill="#fff"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>',
   gear:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.5 4.5l1.9 1.9M17.6 17.6l1.9 1.9M2.5 12h2.6M18.9 12h2.6M4.5 19.5l1.9-1.9M17.6 6.4l1.9-1.9"/></svg>',
@@ -185,6 +193,7 @@ const DOCK = [
   ...APPS.map(a => ({ ...a, kind:'app', pkg: a.pkgs.find(p => installed[p]) }))
          .filter(a => !TV || a.pkg),                 // en la TV solo mostramos las apps instaladas
   { name:'Ciudades', kind:'cities',   icon:'globe', bg:'bg-cities' },
+  { name:'4 ciudades', kind:'mosaic', icon:'quad', bg:'bg-cities' },
   { name:'Todas',    kind:'all',      icon:'grid',  bg:'bg-all' },
   { name:'Ajustes',  kind:'settings', icon:'gear',  bg:'bg-set' },
 ];
@@ -381,6 +390,7 @@ function hideYtControls() {
 // Y por si vuelven a aparecer (cambio de anuncio a cámara, cortes), repetimos cada 45 s mientras se reproduce
 setInterval(() => { try { if (!bg && playerReady && player.getPlayerState() === 1 && !ov) hideYtControls(); } catch {} }, 45000);
 function playCurrent() {
+  if (mosaic) { buildMosaic(); return; }
   if (bg || !playerReady || !cams.length) return;
   const want = cams[camIdx];
   coverOn(want);
@@ -409,8 +419,36 @@ setInterval(() => { try { if (TV && AndroidTV.alive && playerReady && player.get
 setInterval(() => { if (!bg && performance.now() > 6 * 3600e3 && document.body.classList.contains('idle') && !ov) location.reload(); }, 60e3);
 // Segundo plano: con otra app abierta, la cámara se DETIENE (libera el decodificador de video de la TV)
 // y nada se recarga ni se busca hasta volver.
+// ---------- Vista de 4 ciudades (opcional; por defecto se ve una) ----------
+let mosaic = false; try { mosaic = localStorage.getItem('mytv-mosaic') === '1'; } catch {}
+let mosaicStart = 0;
+function mosaicCities() {
+  const out = []; for (let i = 0; out.length < 4 && i < CITIES.length; i++) { const c = CITIES[(mosaicStart + cityIdx + i) % CITIES.length]; if (buildCams(c).length) out.push(c); }
+  return out;
+}
+function buildMosaic() {
+  let m = $('mosaic'); if (m) m.remove();
+  if (!mosaic || bg) return;
+  m = document.createElement('div'); m.id = 'mosaic'; document.body.appendChild(m);
+  mosaicCities().forEach(c => {
+    const id = buildCams(c)[0], cell = document.createElement('div'); cell.className = 'cell';
+    cell.style.backgroundImage = `url(https://i.ytimg.com/vi/${id}/mqdefault_live.jpg)`;
+    cell.innerHTML = `<iframe allow="autoplay; encrypted-media" src="https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&playsinline=1&rel=0&vq=medium"></iframe><div class="lbl">${c.flag} ${c.name}<small data-tz="${c.tz}">${fmt(c.tz)}</small></div>`;
+    m.appendChild(cell);
+  });
+}
+window.toggleMosaic = on => {
+  mosaic = on === undefined ? !mosaic : !!on;
+  try { localStorage.setItem('mytv-mosaic', mosaic ? '1' : '0'); } catch {}
+  const d = DOCK.find(x => x.kind === 'mosaic'); if (d) { d.name = mosaic ? '1 ciudad' : '4 ciudades'; d.icon = mosaic ? 'single' : 'quad'; renderDock(); }
+  if (mosaic) { clearTimeout(watchT); try { player.stopVideo(); } catch {} coverOff(); buildMosaic(); toast('4 ciudades en vivo · ◀ ▶ para cambiar el grupo'); }
+  else { const m = $('mosaic'); if (m) m.remove(); playCurrent(); }
+};
+setInterval(() => { document.querySelectorAll('#mosaic small[data-tz]').forEach(e => e.textContent = fmt(e.dataset.tz)); if (mosaic && !bg && TV && AndroidTV.alive) AndroidTV.alive(); }, 20000);
+
 window.tvBackground = on => {
   bg = !!on;
+  if (mosaic) { if (bg) { const m = $('mosaic'); if (m) m.remove(); } else buildMosaic(); return; }
   clearTimeout(watchT); clearTimeout(coverT);
   if (!playerReady) return;
   if (bg) { try { player.stopVideo(); } catch {} log('segundo plano: cámara detenida'); }
@@ -496,7 +534,8 @@ document.addEventListener('keydown', e => {
     else if (k === 'Escape' || k === 'Backspace') closeOverlay();
     return;
   }
-  // ▲▼ cambian de ciudad incluso con la interfaz oculta (como cambiar de canal)
+  // ▲▼ cambian de ciudad incluso con la interfaz oculta (como cambiar de canal); con 4 ciudades, cambian el grupo
+  if (mosaic && (k === 'ArrowUp' || k === 'ArrowDown')) { mosaicStart += (k === 'ArrowDown' ? 4 : -4) + CITIES.length; buildMosaic(); return; }
   if (k === 'ArrowUp')   { selectCity(cityIdx - 1, true); return; }
   if (k === 'ArrowDown') { selectCity(cityIdx + 1, true); return; }
   if (isIdle()) { wake(); return; }           // la primera tecla solo muestra la interfaz
@@ -514,6 +553,7 @@ document.addEventListener('mousemove', wake);
 
 // ---------- Inicio ----------
 renderDock();
+if (mosaic) { const d = DOCK.find(x => x.kind === 'mosaic'); if (d) { d.name = '1 ciudad'; d.icon = 'single'; renderDock(); } }
 $('cityName').textContent = city().name; $('citySpot').textContent = '· ' + city().spot;
 tickClocks(); loadWeather(); loadLocalWeather(); wake();
 const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);

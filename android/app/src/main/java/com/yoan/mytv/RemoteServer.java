@@ -236,6 +236,12 @@ final class RemoteServer {
                 MainActivity.pendingJs = "window.selectCityById && selectCityById('" + id + "')";
                 if (a != null) a.remoteJs(MainActivity.pendingJs);
                 break;
+            case "mosaic": {   // 4 ciudades a la vez (v = "1" prender, "0" apagar, vacío = alternar)
+                openMyTV();
+                String js = "window.toggleMosaic && toggleMosaic(" + ("1".equals(v) ? "true" : "0".equals(v) ? "false" : "") + ")";
+                if (a != null) a.remoteJs(js); else MainActivity.pendingJs = js;
+                break;
+            }
             case "cam": openMyTV(); if (a != null) a.remoteJs("tvKey('ff')"); break;
             case "apps": openMyTV(); if (a != null) a.remoteJs("tvKey('menu')"); break;
             case "bt": case "btoff": {
