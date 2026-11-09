@@ -254,14 +254,24 @@ function setOnline(on) { $('status').classList.toggle('off', !on); $('status').q
 function showErr(m) { $('err').textContent = m; $('err').style.display = 'block'; }
 
 // Botones: responden al tocar (sin esperar), y volumen/flechas se repiten si los mantienes presionados
+// El comando se manda al SOLTAR el dedo sobre el botón (no al tocar): así el gesto de salir de la app
+// (deslizar desde el borde de abajo, cambiar de app, etc.) no dispara silenciar/pausa por accidente.
+let hiddenAt = 0;
+['visibilitychange','pagehide','blur'].forEach(t => addEventListener(t, () => { hiddenAt = Date.now(); }));
 document.querySelectorAll('[data-k]').forEach(b => {
-  let rep, hold;
+  let rep, hold, x0, y0, ok = false, fired = false;
   const stop = () => { clearTimeout(hold); clearInterval(rep); b.classList.remove('on'); };
+  const fire = () => { fired = true; send(b.dataset.k); };
   b.addEventListener('pointerdown', e => {
-    e.preventDefault(); b.classList.add('on'); send(b.dataset.k);
-    if (['volup','voldown'].includes(b.dataset.k)) hold = setTimeout(() => { rep = setInterval(() => send(b.dataset.k), 180); }, 450);
+    e.preventDefault(); ok = true; fired = false; x0 = e.clientX; y0 = e.clientY; b.classList.add('on');
+    if (['volup','voldown'].includes(b.dataset.k)) hold = setTimeout(() => { if (!ok) return; fire(); rep = setInterval(() => send(b.dataset.k), 180); }, 450);
   });
-  ['pointerup','pointercancel','pointerleave'].forEach(t => b.addEventListener(t, stop));
+  b.addEventListener('pointermove', e => { if (ok && Math.hypot(e.clientX - x0, e.clientY - y0) > 14) { ok = false; stop(); } });
+  b.addEventListener('pointerup', e => {
+    const good = ok && !fired && !document.hidden && Date.now() - hiddenAt > 1000 && Math.hypot(e.clientX - x0, e.clientY - y0) <= 14;
+    ok = false; stop(); if (good) fire();
+  });
+  ['pointercancel','pointerleave'].forEach(t => b.addEventListener(t, () => { ok = false; stop(); }));
   b.addEventListener('touchend', e => e.preventDefault(), { passive:false });   // evita el "clic" fantasma y el zoom
 });
 
@@ -281,7 +291,7 @@ pad.addEventListener('pointermove', e => {
 });
 pad.addEventListener('pointerup', e => {
   dot.style.opacity = 0;
-  if (!moved && Date.now() - t0 < 450) { pad.classList.add('flash'); setTimeout(() => pad.classList.remove('flash'), 120); send('ok'); }
+  if (!moved && Date.now() - t0 < 450 && !document.hidden && Date.now() - hiddenAt > 1000) { pad.classList.add('flash'); setTimeout(() => pad.classList.remove('flash'), 120); send('ok'); }
   sx = null;
 });
 
