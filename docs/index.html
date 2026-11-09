@@ -99,7 +99,7 @@
   .cell.on { border-color:#fff; transform:scale(1.07); background:rgba(255,255,255,.16); }
   .cell svg { width:34%; height:34%; }
   /* Vista de 4 ciudades: 2x2 con imagen en vivo que se refresca (la TV solo puede reproducir 1 video fluido a la vez) */
-  .grid.quad { max-height:none; overflow:visible; gap:1.6vw; }
+  .grid.quad { max-height:none; overflow:visible; gap:1.6vw; width:min(100%, 112vh); margin:0 auto; }
   .grid.quad .cell { position:relative; overflow:hidden; padding:0; align-items:stretch; justify-content:flex-end; background:#0b0d12 center/cover no-repeat; }
   .grid.quad .cell .qn { display:flex; flex-direction:column; align-items:flex-start; gap:.1em; padding:2.2em 3% .5em; text-align:left; background:linear-gradient(transparent, rgba(0,0,0,.8)); }
   .grid.quad .cell .qn b { font-size:clamp(14px,1.5vw,28px); font-weight:600; }
@@ -260,7 +260,7 @@ function paintQuad() {
   ovItems = [0,1,2,3].map(i => CITIES[(quadBase + i) % CITIES.length]);
   $('gridQuad').innerHTML = ovItems.map(c => `<div class="cell" data-v="${c.cams[0]}"><div class="qn"><b>${c.flag} ${c.name}</b><small>${c.spot} · <b data-tz="${c.tz}" style="font-weight:400"></b></small></div></div>`).join('');
   [...$('gridQuad').children].forEach((el,i) => el.onclick = () => { ovIdx = i; pickOverlay(); });
-  tickClocks(); refreshQuad(); clearInterval(quadT); quadT = setInterval(refreshQuad, 6000);
+  tickClocks(); setTimeout(refreshQuad, 0); clearInterval(quadT); quadT = setInterval(refreshQuad, 6000);
 }
 function refreshQuad() {
   if (ov !== 'quad') { clearInterval(quadT); return; }
