@@ -56,7 +56,7 @@
   .live .cam { font-weight:400; color:var(--muted); }
 
   /* Fila de apps estilo Apple TV: mosaicos 16:9, el enfocado se levanta con sombra, brillo y leve inclinación */
-  .dock { position:absolute; left:0; right:0; bottom:7vh; display:flex; justify-content:center; align-items:flex-end; gap:2vw; padding:0 4vw; perspective:900px; }
+  .dock { position:absolute; left:0; right:0; bottom:11vh; display:flex; justify-content:center; align-items:flex-end; gap:2vw; padding:0 4vw; perspective:900px; }
   .tile { position:relative; width:min(clamp(110px,10.6vw,204px), calc((100vw - 8vw - (var(--n,8) - 1) * 2vw) / var(--n,8) * .94)); flex:none; cursor:pointer; }
   .tile .art { position:relative; aspect-ratio:16/9; border-radius:clamp(8px,.85vw,16px); overflow:hidden; background:#1c1c1e;
     box-shadow:0 6px 14px rgba(0,0,0,.45); transition:transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s; display:flex; align-items:center; justify-content:center; }
