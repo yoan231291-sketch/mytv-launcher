@@ -320,6 +320,7 @@ function markBad(v) { if (!v) return; badMap[v] = Date.now(); store.set('badCams
 function buildCams(c) { return [...new Set([...c.cams, ...store.get('found:' + c.id, [])])].filter(v => !isBad(v)); }
 
 function selectCity(i, announce) {
+  if (quadLive) { quadLive = null; $('quadLabels').classList.remove('on'); }   // elegir una ciudad (teclas, voz o teléfono) sale de la vista de 4
   cityStartedAt = Date.now();
   cityIdx = (i + CITIES.length) % CITIES.length; camIdx = 0; failCount = 0;
   store.set('city', city().id);
@@ -511,7 +512,7 @@ window.toggleMosaic = on => {
   cityStartedAt = Date.now();
   toast(mosaic ? 'Recorrido: otra ciudad cada 3 minutos' : 'Recorrido apagado');
 };
-setInterval(() => { if (mosaic && !bg && !ov && Date.now() - cityStartedAt >= TOUR_MS) selectCity(cityIdx + 1, true); }, 10000);
+setInterval(() => { if (mosaic && !bg && !ov && !quadLive && Date.now() - cityStartedAt >= TOUR_MS) selectCity(cityIdx + 1, true); }, 10000);
 
 window.tvBackground = on => {
   bg = !!on;
