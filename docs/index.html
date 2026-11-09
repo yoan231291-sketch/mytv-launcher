@@ -57,7 +57,7 @@
 
   /* Fila de apps estilo Apple TV: mosaicos 16:9, el enfocado se levanta con sombra, brillo y leve inclinación */
   .dock { position:absolute; left:0; right:0; bottom:7vh; display:flex; justify-content:center; align-items:flex-end; gap:2vw; padding:0 4vw; perspective:900px; }
-  .tile { position:relative; width:clamp(110px,10.6vw,204px); flex:none; cursor:pointer; }
+  .tile { position:relative; width:min(clamp(110px,10.6vw,204px), calc((100vw - 8vw - (var(--n,8) - 1) * 2vw) / var(--n,8) * .94)); flex:none; cursor:pointer; }
   .tile .art { position:relative; aspect-ratio:16/9; border-radius:clamp(8px,.85vw,16px); overflow:hidden; background:#1c1c1e;
     box-shadow:0 6px 14px rgba(0,0,0,.45); transition:transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s; display:flex; align-items:center; justify-content:center; }
   .tile .art img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -98,6 +98,12 @@
   .cell small { font-size:clamp(10px,.75vw,14px); color:rgba(255,255,255,.5); }
   .cell.on { border-color:#fff; transform:scale(1.07); background:rgba(255,255,255,.16); }
   .cell svg { width:34%; height:34%; }
+  /* Vista de 4 ciudades: 2x2 con imagen en vivo que se refresca (la TV solo puede reproducir 1 video fluido a la vez) */
+  .grid.quad { max-height:none; overflow:visible; gap:1.6vw; }
+  .grid.quad .cell { position:relative; overflow:hidden; padding:0; align-items:stretch; justify-content:flex-end; background:#0b0d12 center/cover no-repeat; }
+  .grid.quad .cell .qn { display:flex; flex-direction:column; align-items:flex-start; gap:.1em; padding:2.2em 3% .5em; text-align:left; background:linear-gradient(transparent, rgba(0,0,0,.8)); }
+  .grid.quad .cell .qn b { font-size:clamp(14px,1.5vw,28px); font-weight:600; }
+  .quadnote { margin:2vh 0 0; font-size:clamp(11px,.9vw,17px); color:rgba(255,255,255,.55); }
 
   #toast { position:fixed; bottom:calc(6vh + 13vw); left:50%; transform:translateX(-50%); background:rgba(10,12,18,.85); padding:.7em 1.3em; border-radius:12px;
     font-size:clamp(13px,1vw,18px); opacity:0; transition:opacity .3s; pointer-events:none; z-index:6; }
@@ -136,6 +142,7 @@
     </div>
   </div>
 </div>
+<div class="overlay" id="ovQuad"><h2>4 ciudades · ▲▼ cambia de grupo · OK abre en vivo</h2><div class="grid quad" id="gridQuad" style="--cols:2"></div><p class="quadnote">Imágenes en vivo que se actualizan cada pocos segundos. La TV solo puede reproducir un video en vivo fluido a la vez, por eso al elegir una se abre a pantalla completa.</p></div>
 <div class="overlay" id="ovApps"><h2>Todas las apps</h2><div class="grid" id="gridApps" style="--cols:6"></div></div>
 
 <div id="toast"></div>
@@ -188,6 +195,7 @@ const DOCK = [
   ...APPS.map(a => ({ ...a, kind:'app', pkg: a.pkgs.find(p => installed[p]) }))
          .filter(a => !TV || a.pkg),                 // en la TV solo mostramos las apps instaladas
   { name:'Ciudades', kind:'cities',   icon:'globe', bg:'bg-cities' },
+  { name:'4 ciudades', kind:'quad', icon:'quad', bg:'bg-cities' },
   { name:'Recorrido', kind:'mosaic', icon:'globe', bg:'bg-cities' },
   { name:'Todas',    kind:'all',      icon:'grid',  bg:'bg-all' },
   { name:'Ajustes',  kind:'settings', icon:'gear',  bg:'bg-set' },
@@ -204,6 +212,7 @@ function tileArt(d) {
   return `<div class="art" style="background:linear-gradient(160deg,#26262b,#111114)"><span class="glyph" style="color:${d.color}">${d.mark}</span></div>`;
 }
 function renderDock() {
+  $('dock').style.setProperty('--n', DOCK.length);
   $('dock').innerHTML = DOCK.map((d,i) => `<div class="tile${i===dockIdx?' on':''}">${tileArt(d)}<div class="n">${d.name}</div></div>`).join('');
   [...$('dock').children].forEach((el,i) => el.onclick = () => { dockIdx = i; paintDock(); activate(DOCK[i]); });
   // Ajusta íconos cuadrados cuando la imagen termina de cargar
@@ -215,12 +224,13 @@ function activate(d) {
     if (!TV) return toast('Abriendo ' + d.name + '…');
     if (!AndroidTV.launch(d.pkgs.join(','))) toast(d.name + ' no está instalada');
   } else if (d.kind === 'cities') openOverlay('cities');
+  else if (d.kind === 'quad') openOverlay('quad');
   else if (d.kind === 'all') openOverlay('apps');
   else if (d.kind === 'settings') openOverlay('settings');
 }
 
 // ---------- Rejillas (ciudades / todas las apps / ajustes) ----------
-const OV = { cities:'ovCities', apps:'ovApps', settings:'ovSettings', remote:'ovRemote' }, GRID = { cities:'gridCities', apps:'gridApps', settings:'gridSettings', remote:'qr' };
+const OV = { quad:'ovQuad', cities:'ovCities', apps:'ovApps', settings:'ovSettings', remote:'ovRemote' }, GRID = { quad:'gridQuad', cities:'gridCities', apps:'gridApps', settings:'gridSettings', remote:'qr' };
 let ov = null, ovIdx = 0, ovItems = [];
 function openOverlay(kind) {
   if (kind === 'apps') {
@@ -228,6 +238,8 @@ function openOverlay(kind) {
     try { ovItems = JSON.parse(AndroidTV.getApps()); } catch { ovItems = []; }
     $('gridApps').innerHTML = ovItems.map(a => `<div class="cell">${a.icon?`<img src="${a.icon}" alt="">`:''}<span>${a.label}</span></div>`).join('');
     ovIdx = 0;
+  } else if (kind === 'quad') {
+    quadBase = cityIdx - (cityIdx % 4); paintQuad(); ovIdx = cityIdx % 4;
   } else if (kind === 'settings') {
     ovItems = SETTINGS;
     $('gridSettings').innerHTML = SETTINGS.map(x => `<div class="cell">${ICON[x.icon]}<span>${x.name}</span></div>`).join('');
@@ -242,6 +254,21 @@ function openOverlay(kind) {
   moveOv(0);
 }
 const grid = () => $(GRID[ov]);
+// Vista de 4 ciudades (grupos de 4): imagen en vivo de cada cámara, refrescada cada 6 s
+let quadBase = 0, quadT;
+function paintQuad() {
+  ovItems = [0,1,2,3].map(i => CITIES[(quadBase + i) % CITIES.length]);
+  $('gridQuad').innerHTML = ovItems.map(c => `<div class="cell" data-v="${c.cams[0]}"><div class="qn"><b>${c.flag} ${c.name}</b><small>${c.spot} · <b data-tz="${c.tz}" style="font-weight:400"></b></small></div></div>`).join('');
+  [...$('gridQuad').children].forEach((el,i) => el.onclick = () => { ovIdx = i; pickOverlay(); });
+  tickClocks(); refreshQuad(); clearInterval(quadT); quadT = setInterval(refreshQuad, 6000);
+}
+function refreshQuad() {
+  if (ov !== 'quad') { clearInterval(quadT); return; }
+  [...$('gridQuad').children].forEach(el => {
+    const u = `https://i.ytimg.com/vi/${el.dataset.v}/sddefault_live.jpg?t=${Date.now()}`, im = new Image();
+    im.onload = () => { el.style.backgroundImage = `url(${u})`; }; im.src = u;
+  });
+}
 function closeOverlay() { if (!ov) return; $(OV[ov]).classList.remove('open'); ov = null; }
 function moveOv(d) {
   const cells = grid().children; if (!cells.length) return;
@@ -259,6 +286,7 @@ function pickOverlay() {
     const ok = typeof AndroidTV.openSetting === 'function' && AndroidTV.openSetting(item.target);
     if (!ok) AndroidTV.openSettings();             // versión anterior de la app o pantalla no disponible
   }
+  else if (kind === 'quad') selectCity((quadBase + ovIdx) % CITIES.length, true);
   else selectCity(ovIdx, true);
 }
 
@@ -512,6 +540,12 @@ document.addEventListener('keydown', e => {
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter'].includes(k)) e.preventDefault();
   if (ov) {
     wake();
+    if (ov === 'quad' && (k === 'ArrowUp' || k === 'ArrowDown')) {
+      const row = ovIdx >= 2 ? 1 : 0;
+      if (k === 'ArrowDown' && row === 0) { moveOv(2); return; }
+      if (k === 'ArrowUp' && row === 1) { moveOv(-2); return; }
+      quadBase = (quadBase + (k === 'ArrowDown' ? 4 : -4) + CITIES.length * 4) % CITIES.length; paintQuad(); moveOv(0); return;
+    }
     const cols = getComputedStyle(grid()).gridTemplateColumns.split(' ').length;
     if (k === 'ArrowRight') moveOv(1); else if (k === 'ArrowLeft') moveOv(-1);
     else if (k === 'ArrowDown') moveOv(cols); else if (k === 'ArrowUp') moveOv(-cols);
