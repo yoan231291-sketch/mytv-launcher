@@ -16,6 +16,11 @@
   /* ---------- Cámara ---------- */
   #camWrap { position:fixed; inset:0; overflow:hidden; background:#000; }
   /* Sin transform ni recorte: en Fire TV el video va en una capa aparte; debe quedar justo en 0,0 y del tamaño de la pantalla */
+  #rv { position:absolute; inset:0; width:100vw; height:100vh; object-fit:cover; background:#000; display:none; }
+  body.relay #rv { display:block; }
+  #quadLabels { position:fixed; inset:0; z-index:2; pointer-events:none; display:none; grid-template:1fr 1fr / 1fr 1fr; }
+  #quadLabels.on { display:grid; }
+  #quadLabels div { align-self:end; justify-self:start; margin:0 0 2.2vh 1.6vw; font-size:clamp(13px,1.3vw,26px); font-weight:600; background:rgba(0,0,0,.45); padding:.35em .8em; border-radius:999px; text-shadow:0 1px 6px rgba(0,0,0,.6); }
   #camWrap iframe, #player { position:absolute; top:0; left:0; width:100vw; height:100vh; pointer-events:none; border:0; transition:opacity .8s ease; }
   .spinner { width:44px; height:44px; border-radius:50%; border:3px solid rgba(255,255,255,.15); border-top-color:var(--accent); animation:spin 1s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
@@ -113,7 +118,8 @@
 </head>
 <body>
 
-<div id="camWrap"><div id="player"></div></div>
+<div id="camWrap"><div id="player"></div><video id="rv" muted autoplay playsinline></video></div>
+<div id="quadLabels"></div>
 <div id="camCover"><div class="pill"><i></i>Conectando en vivo…</div></div>
 <div class="shade"></div>
 
@@ -224,7 +230,7 @@ function activate(d) {
     if (!TV) return toast('Abriendo ' + d.name + '…');
     if (!AndroidTV.launch(d.pkgs.join(','))) toast(d.name + ' no está instalada');
   } else if (d.kind === 'cities') openOverlay('cities');
-  else if (d.kind === 'quad') openOverlay('quad');
+  else if (d.kind === 'quad') { if (USE_RELAY) { document.body.classList.add('idle'); startQuadLive(cityIdx - (cityIdx % 4)); } else openOverlay('quad'); }
   else if (d.kind === 'all') openOverlay('apps');
   else if (d.kind === 'settings') openOverlay('settings');
 }
@@ -370,6 +376,51 @@ function showCityToast() {
   $('cityToast').classList.add('show'); clearTimeout(ctT); ctT = setTimeout(() => $('cityToast').classList.remove('show'), 2500);
 }
 
+// ---------- Video limpio desde el Mac (sin el reproductor de YouTube: sin anuncios, sin ruedita, sin textos) ----------
+// El Mac (relay.py) toma 1–4 cámaras y entrega UN solo video; la TV solo reproduce ese video.
+const RELAY = (() => { try { return localStorage.getItem('mytv-relay'); } catch { return null; } })() || 'http://10.20.20.24:8700';
+const USE_RELAY = (() => { try { return localStorage.getItem('mytv-relay-off') !== '1'; } catch { return true; } })();
+let relayIds = [], relayBad = 0, hls = null, relayDown = false, relayKey = '', quadLive = null, relayRetryT;
+const rv = () => $('rv');
+const rvPlaying = () => { const v = rv(); return !!v && !v.paused && v.readyState >= 3 && performance.now() - rvLastTick < 4000; };
+let rvLastTick = 0;
+document.addEventListener('DOMContentLoaded', () => { const v = rv(); if (!v) return; v.addEventListener('timeupdate', () => { rvLastTick = performance.now(); }); v.addEventListener('playing', () => { coverOff(); }); });
+function loadHlsLib() {
+  return new Promise((ok, no) => { if (window.Hls) return ok(); const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js'; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
+}
+async function relayPlay(ids) {
+  const key = ids.join(','); relayKey = key; relayIds = ids; document.body.classList.add('relay');
+  let j;
+  try { const r = await fetch(`${RELAY}/play?ids=${encodeURIComponent(key)}`, { cache:'no-store' }); j = await r.json(); }
+  catch (e) { relayDown = true; toast('No encuentro el Mac con el relé de cámaras. Reintento…'); log('relé caído', e && e.message); clearTimeout(relayRetryT); relayRetryT = setTimeout(() => { if (relayKey === key) relayPlay(ids); }, 10000); return; }
+  if (relayKey !== key) return;                       // llegó otra orden mientras tanto
+  relayDown = false;
+  if (!j.url) { log('relé: sin video', j.error); if (!quadLive) nextCam(true); else toast('Una cámara no responde; reintento'); return; }
+  try { await loadHlsLib(); } catch { toast('No se pudo cargar el reproductor de video'); return; }
+  if (relayKey !== key) return;
+  if (hls) { try { hls.destroy(); } catch {} hls = null; }
+  const v = rv(); hls = new Hls({ liveSyncDurationCount:3, maxBufferLength:12, enableWorker:true });
+  hls.loadSource(RELAY + j.url); hls.attachMedia(v);
+  hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) { try { d.type === Hls.ErrorTypes.NETWORK_ERROR ? hls.startLoad() : hls.recoverMediaError(); } catch {} } });
+  v.play().catch(() => {});
+}
+// Vigilante: si el video se detiene (el Mac reinició el relé, caducó el enlace, cayó la red), se vuelve a pedir solo
+setInterval(() => { if (!USE_RELAY || bg || !relayKey || relayDown) return; if (rvPlaying()) { relayBad = 0; return; } if (++relayBad >= 4) { relayBad = 0; log('video detenido: lo pido de nuevo'); relayPlay(relayIds); } }, 8000);
+const rvPlayer = {
+  loadVideoById: id => { relayPlay([id]); }, mute() {}, playVideo() {}, getPlayerState: () => rvPlaying() ? 1 : 3,
+  stopVideo() { relayKey = ''; clearTimeout(relayRetryT); try { fetch(RELAY + '/stop'); } catch {} try { rv().pause(); } catch {} }
+};
+// 4 ciudades en vivo a pantalla completa (un solo video armado por el Mac)
+function startQuadLive(base) {
+  const n = CITIES.length; quadLive = { base: ((base % n) + n) % n };
+  const group = [0,1,2,3].map(i => CITIES[(quadLive.base + i) % n]);
+  $('quadLabels').innerHTML = group.map(c => `<div>${c.flag} ${c.name}</div>`).join(''); $('quadLabels').classList.add('on');
+  document.body.classList.add('idle'); clearTimeout(idleT); coverOff();
+  relayPlay(group.map(c => c.cams[0]));
+}
+function stopQuadLive(back) { if (!quadLive) return; quadLive = null; $('quadLabels').classList.remove('on'); if (back) selectCity(cityIdx, false); }
+
 function onYouTubeIframeAPIReady() {
   log('API lista');
   player = new YT.Player('player', {
@@ -399,6 +450,7 @@ let revealT, watchT, coverT;
 // Cubre el video con la foto de la cámara hasta que lleva 3 s reproduciéndose (los controles de YouTube ya se ocultaron).
 // Máximo 12 s: si YouTube pone un anuncio, se ve como siempre.
 function coverOn(id) {
+  if (USE_RELAY) return;
   const c = $('camCover');
   c.style.setProperty('--img', `url(https://i.ytimg.com/vi/${id}/sddefault_live.jpg)`);
   c.classList.remove('off'); clearTimeout(coverT); coverT = setTimeout(coverOff, 12000);
@@ -407,6 +459,7 @@ function coverOff() { clearTimeout(coverT); $('camCover').classList.add('off'); 
 // Esconde los controles de YouTube: un "puntero" entra al video y sale (la app de la TV lo simula).
 let nudgeT = 0;
 function hideYtControls() {
+  if (USE_RELAY) return;
   if (!TV || typeof AndroidTV.hoverNudge !== 'function' || Date.now() - nudgeT < 1500) return;
   nudgeT = Date.now();
   const el = document.getElementById('player'); if (!el) return;
@@ -423,7 +476,7 @@ function playCurrent() {
   // Vigilante: si en 40 s la cámara no está reproduciendo (caída o trabada), pasa a la siguiente.
   // 40 s y no menos: YouTube a veces pone 1–2 anuncios de 15 s antes del en vivo.
   clearTimeout(watchT);
-  watchT = setTimeout(() => { if (!bg && player.getPlayerState() !== 1 && cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 40000);
+  watchT = setTimeout(() => { if (!bg && !relayDown && player.getPlayerState() !== 1 && cams[camIdx] === want) { log('cámara trabada', want); nextCam(true); } }, 40000);
 }
 function nextCam(auto, dir = 1) {
   if (bg) return;
@@ -528,6 +581,7 @@ function toast(m) { $('toast').textContent = m; $('toast').classList.add('show')
 // ---------- Control remoto ----------
 // Teclas que manda la app nativa: back, menu, playpause, ff, rew
 window.tvKey = k => {
+  if (quadLive) { if (k === 'back' || k === 'menu' || k === 'playpause') { stopQuadLive(true); wake(); } return; }
   if (k === 'back') { if (ov) closeOverlay(); else if (isIdle()) wake(); else { document.body.classList.add('idle'); clearTimeout(idleT); } return; }
   if (k === 'ff')  { nextCam(false, 1); return; }
   if (k === 'rew') { nextCam(false, -1); return; }
@@ -537,6 +591,13 @@ window.tvKey = k => {
 
 document.addEventListener('keydown', e => {
   const k = e.key;
+  if (quadLive) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter'].includes(k)) e.preventDefault();
+    if (k === 'ArrowDown' || k === 'ArrowRight') startQuadLive(quadLive.base + 4);
+    else if (k === 'ArrowUp' || k === 'ArrowLeft') startQuadLive(quadLive.base - 4);
+    else { cityIdx = quadLive.base % CITIES.length; stopQuadLive(true); wake(); }
+    return;
+  }
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter'].includes(k)) e.preventDefault();
   if (ov) {
     wake();
@@ -589,7 +650,8 @@ renderDock();
 if (mosaic) { const d = DOCK.find(x => x.kind === 'mosaic'); if (d) { d.name = 'Recorrido ✓'; renderDock(); } }
 $('cityName').textContent = city().name; $('citySpot').textContent = '· ' + city().spot;
 tickClocks(); loadWeather(); loadLocalWeather(); wake();
-const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+if (USE_RELAY) { player = rvPlayer; playerReady = true; const pe = $('player'); if (pe) pe.remove(); document.body.classList.add('relay'); selectCity(cityIdx); }
+else { const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s); }
 </script>
 </body>
 </html>

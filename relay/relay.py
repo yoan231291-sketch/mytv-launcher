@@ -7,6 +7,7 @@ sin reproductor de YouTube (sin anuncios, sin ruedita, sin textos), con 1-4 cám
   GET /health                    -> {"ok":true}
 Solo biblioteca estándar + yt-dlp + ffmpeg.
 """
+from concurrent.futures import ThreadPoolExecutor
 import json, os, shutil, signal, subprocess, sys, threading, time
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -43,7 +44,7 @@ def start(ids):
     cur["n"] += 1; n = cur["n"]
     d = os.path.join(ROOT, str(n)); shutil.rmtree(d, ignore_errors=True); os.makedirs(d)
     k = len(ids)
-    urls = [stream_url(v, 720 if k == 1 else 480) for v in ids]
+    with ThreadPoolExecutor(4) as ex: urls = list(ex.map(lambda v: stream_url(v, 720 if k == 1 else 480), ids))
     inp = []
     for u in urls:
         inp += ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5", "-i", u]
