@@ -35,10 +35,19 @@ button{cursor:pointer;border:0;background:none}
 #balAmt{font-family:"Baloo 2",sans-serif;font-weight:800;font-size:38px;line-height:1.05}
 #balAmt.debe{color:var(--red)} #balAmt.cero{color:var(--green)}
 #whoBtn{pointer-events:auto;background:rgba(255,255,255,.88);border-radius:999px;padding:8px 14px;font-weight:800;font-size:15px;box-shadow:var(--sh)}
-.tag{position:absolute;z-index:3;transform:translate(-50%,-100%);background:var(--ink);color:#fff;font-weight:800;font-size:14px;padding:3px 10px;border-radius:999px;pointer-events:none;white-space:nowrap}
+.tag{position:absolute;z-index:1;transform:translate(-50%,-100%);background:var(--ink);color:#fff;font-weight:800;font-size:14px;padding:3px 10px;border-radius:999px;pointer-events:none;white-space:nowrap}
 .tag::after{content:"";position:absolute;left:50%;bottom:-5px;margin-left:-5px;border:5px solid transparent;border-bottom:0;border-top-color:var(--ink)}
-.sbub{position:absolute;transform:translate(-50%,-100%);background:#fff;font-weight:800;font-size:15px;padding:8px 12px;border-radius:16px;box-shadow:var(--sh);pointer-events:none;opacity:0;transition:opacity .25s;max-width:60vw;text-align:center}
-.sbub.on{opacity:1}
+.sbub{position:absolute;z-index:4;top:0;left:0;background:#fff;color:var(--ink);font-weight:800;font-size:17px;line-height:1.25;padding:10px 14px;border-radius:18px;box-shadow:0 6px 18px rgba(80,40,20,.22);pointer-events:none;opacity:0;transition:opacity .25s;width:max-content;max-width:min(46%,220px);text-align:center;overflow-wrap:anywhere}
+.sbub.on{opacity:1;animation:bubIn .35s ease-out}
+@keyframes bubIn{0%{scale:.6}70%{scale:1.06}100%{scale:1}}
+.sbub::before{content:"";position:absolute;top:50%;margin-top:-8px;border:8px solid transparent}
+#bubY::before{left:-14px;border-right-color:#fff}
+#bubA::before{right:-14px;border-left-color:#fff}
+.flist{margin-top:14px}
+.frow{display:flex;gap:8px;align-items:center;background:#fff;border-radius:14px;padding:8px 10px;margin:6px 0}
+.frow .t{flex:1;font-weight:700;line-height:1.25;overflow-wrap:anywhere}
+.frow button{font-size:20px;padding:6px 8px;border-radius:10px;background:#f6ece3}
+.fhead{font-weight:800;color:var(--mute);font-size:15px;margin-top:12px}
 #party{position:absolute;left:50%;bottom:14px;transform:translateX(-50%) scale(.6);background:var(--green);color:#fff;font-family:"Baloo 2";font-weight:800;font-size:24px;padding:4px 18px;border-radius:999px;opacity:0;transition:.4s;pointer-events:none;white-space:nowrap}
 #party.on{opacity:1;transform:translateX(-50%) scale(1)}
 #sync{position:absolute;right:12px;bottom:10px;font-size:12px;font-weight:800;color:#8c5a48;background:rgba(255,255,255,.7);padding:3px 9px;border-radius:999px}
@@ -101,22 +110,22 @@ button{cursor:pointer;border:0;background:none}
 .empty{text-align:center;color:var(--mute);padding:30px 10px;font-weight:700}
 
 /* ---------- Hoja manual ---------- */
-#sheet{position:fixed;inset:0;background:rgba(42,34,51,.45);display:none;align-items:flex-end;z-index:20}
-#sheet.on{display:flex}
-#sheet .in{background:var(--bg);width:100%;border-radius:26px 26px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92dvh;overflow:auto;animation:up .3s ease-out}
+#sheet,.sheet2{position:fixed;inset:0;background:rgba(42,34,51,.45);display:none;align-items:flex-end;z-index:20}
+#sheet.on,.sheet2.on{display:flex}
+#sheet .in,.sheet2 .in{background:var(--bg);width:100%;border-radius:26px 26px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92dvh;overflow:auto;animation:up .3s ease-out}
 @keyframes up{from{transform:translateY(100%)}to{transform:none}}
-#sheet h3{font-family:"Baloo 2";font-size:26px;margin:0 0 8px}
-#sheet .lbl{font-weight:800;color:var(--mute);font-size:15px;margin:12px 0 6px}
+#sheet h3,.sheet2 h3{font-family:"Baloo 2";font-size:26px;margin:0 0 8px}
+#sheet .lbl,.sheet2 .lbl{font-weight:800;color:var(--mute);font-size:15px;margin:12px 0 6px}
 .seg{display:flex;gap:8px;flex-wrap:wrap}
 .seg button{flex:1;min-width:30%;padding:12px 8px;border-radius:14px;background:#fff;border:2px solid var(--line);font-weight:800;font-size:16px}
 .seg button.on{border-color:var(--coral);background:#fff0ea}
-#sheet input{width:100%;height:52px;border-radius:14px;border:2px solid var(--line);padding:0 14px;font-size:19px;background:#fff}
+#sheet input,.sheet2 input{width:100%;height:52px;border-radius:14px;border:2px solid var(--line);padding:0 14px;font-size:19px;background:#fff}
 #mPrev{margin:14px 0;padding:12px;background:#fff;border-radius:14px;font-weight:800;line-height:1.35}
 .big{width:100%;padding:15px;border-radius:16px;font-weight:800;font-size:19px;background:var(--green);color:#fff;margin-top:6px}
 .ghost{width:100%;padding:12px;font-weight:800;color:var(--mute);margin-top:4px}
 
-#toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 16px;border-radius:16px;font-weight:800;opacity:0;transition:.3s;z-index:30;display:flex;gap:12px;align-items:center;max-width:92vw}
-#toast.on{opacity:1;transform:translateX(-50%)}
+#toast{pointer-events:none;position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 16px;border-radius:16px;font-weight:800;opacity:0;transition:.3s;z-index:30;display:flex;gap:12px;align-items:center;max-width:92vw}
+#toast.on{opacity:1;transform:translateX(-50%);pointer-events:auto}
 #toast button{color:var(--gold);font-weight:800;text-decoration:underline}
 </style>
 </head>
@@ -176,6 +185,22 @@ button{cursor:pointer;border:0;background:none}
     <div id="mPrev"></div>
     <button type="button" class="big" id="mOk">✅ Anotar</button>
     <button type="button" class="ghost" id="mNo">Cancelar</button>
+  </div>
+</div>
+<div id="fsheet" class="sheet2">
+  <div class="in">
+    <h3>💬 Frases de los muñequitos</h3>
+    <div class="lbl">¿Quién la dice?</div>
+    <div class="seg" id="fQuien">
+      <button type="button" data-v="yoan">🧔 Yoan</button>
+      <button type="button" data-v="arelis">👩 Arelis</button>
+    </div>
+    <div class="lbl">Escribe la frase</div>
+    <input id="fTxt" type="text" maxlength="80" placeholder="Ej: ¡Tía, hoy invito yo! 🍕" enterkeyhint="done">
+    <button type="button" class="big" id="fOk">💬 ¡Que lo diga!</button>
+    <div class="s" style="color:var(--mute);font-size:14px;margin-top:6px">Se guarda y también sale en el teléfono del otro. Cuando toquen al muñequito, la puede decir otra vez.</div>
+    <div class="flist" id="fList"></div>
+    <button type="button" class="ghost" id="fNo">Cerrar</button>
   </div>
 </div>
 <div id="toast"></div>
@@ -487,11 +512,17 @@ const W = (() => {
     const r = canvas.getBoundingClientRect();
     ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ptr, camera);
-    for (const P of [Y, A]) if (ray.intersectObject(P.g, true).length) { P.jump = 1; say(P.kind, lines[P.kind][Math.floor(Math.random() * lines[P.kind].length)]); Sfx.boing(); break; }
+    for (const P of [Y, A]) if (ray.intersectObject(P.g, true).length) { P.jump = 1; say(P.kind, pickLine(P.kind)); Sfx.boing(); break; }
   });
 
+  function pickLine(kind) {
+    const mine = (S.frases || []).filter(f => f.quien === kind).map(f => f.texto);
+    const pool = mine.length && Math.random() < 0.7 ? mine : lines[kind].concat(mine);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
   const bubT = {};
   function say(kind, text, ms = 2600) {
+    ms = Math.max(ms, 1800 + String(text).length * 70);
     const el = kind === "yoan" ? $("#bubY") : $("#bubA");
     el.textContent = text; el.classList.add("on");
     clearTimeout(bubT[kind]); bubT[kind] = setTimeout(() => el.classList.remove("on"), ms);
@@ -516,6 +547,17 @@ const W = (() => {
     tmp.copy(P.g.position); tmp.y += yOff + P.body.position.y; tmp.project(camera);
     el.style.left = ((tmp.x + 1) / 2 * stage.clientWidth) + "px";
     el.style.top = ((1 - tmp.y) / 2 * stage.clientHeight) + "px";
+  }
+
+  // side = 1: el globo sale a la derecha de la cabeza (Yoan); -1: a la izquierda (Arelis)
+  function placeBub(el, P, side) {
+    if (!el.classList.contains("on")) return;
+    tmp.copy(P.g.position); tmp.x += side * 0.5; tmp.y += 1.95 + P.body.position.y; tmp.project(camera);
+    const W = stage.clientWidth, H = stage.clientHeight, w = el.offsetWidth, h = el.offsetHeight;
+    let x = (tmp.x + 1) / 2 * W, y = (1 - tmp.y) / 2 * H - h / 2;
+    x = side > 0 ? Math.min(x, W - w - 8) : Math.max(x - w, 8);
+    y = Math.max(8, Math.min(y, H - h - 8));
+    el.style.transform = `translate(${x}px, ${y}px)`;
   }
 
   /* ---------- Bucle ---------- */
@@ -586,7 +628,7 @@ const W = (() => {
     camera.lookAt(0, 1.45, 0);
 
     place($("#tagY"), Y, 2.5); place($("#tagA"), A, 2.5);
-    place($("#bubY"), Y, 3.0); place($("#bubA"), A, 3.0);
+    placeBub($("#bubY"), Y, 1); placeBub($("#bubA"), A, -1);
     renderer.render(scene, camera);
     requestAnimationFrame(loop);
   }
@@ -944,6 +986,7 @@ function renderChips() {
   const y = S.yo === "yoan";
   const chips = [
     ["✍️ A mano", () => openSheet()],
+    ["💬 Frases", () => openFrases()],
     [y ? "💵 Le pagué a la Tía" : "💵 Yoan me pagó", () => prefill(y ? "Le pagué $ a la Tía" : "Yoan me pagó $", y ? 11 : 15)],
     ["🛒 Pagué el mercado", () => prefill("Pagué el mercado, $", 19)],
     [y ? "🚬 Cigarros" : "🚬 Le compré cigarros", () => prefill(y ? "Anótame una caja de cigarros, $" : "Le compré cigarros a Yoan, $", y ? 32 : 28)],
@@ -953,6 +996,55 @@ function renderChips() {
   for (const [t, fn] of chips) { const b = document.createElement("button"); b.type = "button"; b.textContent = t; b.onclick = fn; box.appendChild(b); }
 }
 function prefill(t) { const i = $("#txt"); i.value = t; i.focus(); const pos = t.indexOf("$") + 1 || t.length; try { i.setSelectionRange(pos, pos); } catch (e) {} showTab("chat"); }
+
+/* ---------- Frases ---------- */
+S.frases = []; const seenFr = new Set(); let fQuien = "yoan";
+function syncFrases(list, initial) {
+  S.frases = list.filter(f => f && (f.quien === "yoan" || f.quien === "arelis")).map(f => ({ id: f.id, quien: f.quien, texto: String(f.texto || "").slice(0, 80), por: f.por, ts: Number(f.ts) || 0 }));
+  for (const f of S.frases) {
+    if (seenFr.has(f.id)) continue; seenFr.add(f.id);
+    if (!initial && f.por !== S.yo) { W.say(f.quien, f.texto, 5000); W.jump(f.quien); Sfx.boing(); }
+  }
+  if ($("#fsheet").classList.contains("on")) drawFrases();
+}
+function openFrases() { fQuien = S.yo; $("#fTxt").value = ""; drawFrases(); $("#fsheet").classList.add("on"); }
+function drawFrases() {
+  document.querySelectorAll("#fQuien button").forEach(b => b.classList.toggle("on", b.dataset.v === fQuien));
+  const box = $("#fList"); box.textContent = "";
+  for (const who of ["yoan", "arelis"]) {
+    const mine = S.frases.filter(f => f.quien === who).slice().reverse();
+    if (!mine.length) continue;
+    const hd = document.createElement("div"); hd.className = "fhead"; hd.textContent = who === "yoan" ? "🧔 Frases de Yoan" : "👩 Frases de Arelis"; box.appendChild(hd);
+    for (const f of mine) {
+      const r = document.createElement("div"); r.className = "frow";
+      const t = document.createElement("div"); t.className = "t"; t.textContent = f.texto;
+      const play = document.createElement("button"); play.type = "button"; play.textContent = "▶️"; play.title = "Que la diga";
+      play.onclick = () => { W.say(f.quien, f.texto, 5000); W.jump(f.quien); Sfx.boing(); };
+      const del = document.createElement("button"); del.type = "button"; del.textContent = "🗑️";
+      del.onclick = async () => {
+        if (del.dataset.c !== "1") { del.dataset.c = "1"; del.textContent = "¿Sí?"; del.style.fontSize = "15px"; return; }
+        try { await api("frase_del", { id: f.id }); S.frases = S.frases.filter(x => x.id !== f.id); drawFrases(); } catch (e) { writeErr(e); }
+      };
+      r.append(t, play, del); box.appendChild(r);
+    }
+  }
+}
+document.querySelectorAll("#fQuien button").forEach(b => b.onclick = () => { fQuien = b.dataset.v; drawFrases(); });
+$("#fNo").onclick = () => $("#fsheet").classList.remove("on");
+$("#fsheet").addEventListener("click", e => { if (e.target.id === "fsheet") $("#fsheet").classList.remove("on"); });
+$("#fTxt").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#fOk").click(); } });
+$("#fOk").onclick = async () => {
+  const texto = $("#fTxt").value.trim().slice(0, 80);
+  if (!texto) { $("#fTxt").focus(); return; }
+  $("#fOk").disabled = true;
+  try {
+    const f = await api("frase_add", { quien: fQuien, texto, por: S.yo });
+    seenFr.add(f.id); S.frases.push({ id: f.id, quien: f.quien, texto: f.texto, por: f.por, ts: Number(f.ts) });
+    $("#fTxt").value = ""; $("#fsheet").classList.remove("on");
+    W.say(fQuien, texto, 5000); W.jump(fQuien); Sfx.boing();
+  } catch (e) { writeErr(e); }
+  finally { $("#fOk").disabled = false; }
+};
 
 /* ---------- Pestañas ---------- */
 function showTab(t) {
@@ -1023,6 +1115,7 @@ async function load(first) {
     S.movs = (r.movs || []).map(x => ({ id: x.id, fecha: String(x.fecha || ""), desc: String(x.desc || ""), monto: Number(x.monto) || 0, tipo: String(x.tipo || ""),
       pago: x.pago === "arelis" ? "arelis" : x.pago === "yoan" ? "yoan" : "", delta: Number(x.delta) || 0, cat: Array.from(String(x.cat || "")).slice(0, 2).join(""),
       por: x.por === "arelis" ? "arelis" : x.por === "yoan" ? "yoan" : "", ts: Number(x.ts) || 0 }));
+    syncFrases(r.frases || [], first || !S.loaded);
     $("#sync").textContent = "🟢 al día";
     const wasLoaded = S.loaded; S.loaded = true;
     if (!wasLoaded || first) { renderBal(false); renderHist(); return; }
