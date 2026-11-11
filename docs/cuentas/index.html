@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>Cuentas Claras — Yoan y la Tía</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cuentas">
+<meta name="theme-color" content="#ffd9c2">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fff6ec; --card:#ffffff; --ink:#2a2233; --mute:#7a6f80;
+  --coral:#ff7a59; --coral2:#ff9f7f; --green:#21a366; --red:#e5484d;
+  --gold:#f2b632; --line:#f1e3d3; --sh:0 6px 20px rgba(80,40,20,.10);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Nunito,system-ui,sans-serif;font-size:18px;overflow:hidden}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+#app{display:flex;flex-direction:column;height:100dvh;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
+/* ---------- Escena 3D ---------- */
+#stage{position:relative;height:40dvh;min-height:250px;max-height:430px;flex:none;
+  background:radial-gradient(120% 90% at 50% 10%,#fff1d6 0%,#ffd9c2 55%,#ffc4b0 100%);border-radius:0 0 28px 28px;overflow:hidden;box-shadow:var(--sh)}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}
+#hud{position:absolute;left:0;right:0;top:0;z-index:2;padding:10px 12px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+#bal{pointer-events:auto;background:rgba(255,255,255,.88);backdrop-filter:blur(6px);border-radius:20px;padding:8px 16px 6px;box-shadow:var(--sh);text-align:left;transition:transform .3s}
+#bal.pop{animation:pop .6s}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+#balLbl{font-weight:800;font-size:15px;color:var(--mute);line-height:1.1}
+#balAmt{font-family:"Baloo 2",sans-serif;font-weight:800;font-size:38px;line-height:1.05}
+#balAmt.debe{color:var(--red)} #balAmt.cero{color:var(--green)}
+#whoBtn{pointer-events:auto;background:rgba(255,255,255,.88);border-radius:999px;padding:8px 14px;font-weight:800;font-size:15px;box-shadow:var(--sh)}
+.tag{position:absolute;z-index:3;transform:translate(-50%,-100%);background:var(--ink);color:#fff;font-weight:800;font-size:14px;padding:3px 10px;border-radius:999px;pointer-events:none;white-space:nowrap}
+.tag::after{content:"";position:absolute;left:50%;bottom:-5px;margin-left:-5px;border:5px solid transparent;border-bottom:0;border-top-color:var(--ink)}
+.sbub{position:absolute;transform:translate(-50%,-100%);background:#fff;font-weight:800;font-size:15px;padding:8px 12px;border-radius:16px;box-shadow:var(--sh);pointer-events:none;opacity:0;transition:opacity .25s;max-width:60vw;text-align:center}
+.sbub.on{opacity:1}
+#party{position:absolute;left:50%;bottom:14px;transform:translateX(-50%) scale(.6);background:var(--green);color:#fff;font-family:"Baloo 2";font-weight:800;font-size:24px;padding:4px 18px;border-radius:999px;opacity:0;transition:.4s;pointer-events:none;white-space:nowrap}
+#party.on{opacity:1;transform:translateX(-50%) scale(1)}
+#sync{position:absolute;right:12px;bottom:10px;font-size:12px;font-weight:800;color:#8c5a48;background:rgba(255,255,255,.7);padding:3px 9px;border-radius:999px}
+
+/* ---------- Pestañas ---------- */
+#tabs{display:flex;gap:8px;padding:10px 14px 6px;flex:none}
+#tabs button{flex:1;padding:10px;border-radius:14px;font-weight:800;font-size:17px;background:#fde9da;color:#8c5a48}
+#tabs button.on{background:var(--ink);color:#fff}
+.pane{flex:1;overflow-y:auto;display:none;padding:6px 14px 10px;-webkit-overflow-scrolling:touch}
+.pane.on{display:block}
+
+/* ---------- Chat ---------- */
+.msg{display:flex;gap:8px;margin:10px 0;align-items:flex-end;animation:in .35s ease-out}
+@keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.msg .av{width:36px;height:36px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:20px;background:#ffe2cf}
+.msg .tx{background:var(--card);padding:11px 14px;border-radius:18px 18px 18px 6px;box-shadow:var(--sh);max-width:82%;line-height:1.35;white-space:pre-wrap;word-wrap:break-word}
+.msg.me{flex-direction:row-reverse}
+.msg.me .tx{background:var(--coral);color:#fff;border-radius:18px 18px 6px 18px}
+.msg.me .av{background:var(--coral2)}
+.msg img{display:block;max-width:180px;max-height:220px;border-radius:12px;margin-top:6px}
+.think .tx{color:var(--mute)}
+.think .tx::after{content:"";display:inline-block;width:1em;animation:dots 1.2s infinite steps(4)}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.prop{background:#fff;border:2px dashed var(--coral);border-radius:18px;padding:12px;margin:8px 0 8px 44px;animation:in .35s}
+.prop .ln{font-weight:800;font-size:18px;line-height:1.3}
+.prop .ef{margin:6px 0 10px;font-weight:800}
+.prop .btns{display:flex;flex-wrap:wrap;gap:8px}
+.prop .btns button{padding:10px 14px;border-radius:12px;font-weight:800;font-size:16px;background:#f6ece3}
+.prop .btns .ok{background:var(--green);color:#fff;flex:1 1 100%;font-size:19px;padding:13px}
+.prop.done{border-style:solid;border-color:var(--green);opacity:.75}
+.prop.no{border-color:#ccc;opacity:.5}
+.up{color:var(--red)} .down{color:var(--green)}
+
+/* ---------- Atajos y barra ---------- */
+#chips{display:flex;gap:8px;overflow-x:auto;padding:6px 14px;flex:none;scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+#chips button{flex:none;background:#fff;border:2px solid var(--line);padding:8px 13px;border-radius:999px;font-weight:800;font-size:15px}
+#bar{display:flex;gap:8px;padding:6px 12px 10px;flex:none;align-items:center}
+#cam{width:52px;height:52px;border-radius:50%;background:var(--gold);display:grid;place-items:center;font-size:24px;flex:none;cursor:pointer;box-shadow:var(--sh)}
+#cam.off{opacity:.35;pointer-events:none}
+#txt{flex:1;min-width:0;height:52px;border-radius:26px;border:2px solid var(--line);padding:0 18px;font-size:18px;background:#fff;outline:none}
+#txt:focus{border-color:var(--coral)}
+#send{width:52px;height:52px;border-radius:50%;background:var(--coral);color:#fff;font-size:22px;flex:none;box-shadow:var(--sh)}
+#send:disabled{opacity:.5}
+
+/* ---------- Historial ---------- */
+.day{margin:14px 0 6px;display:flex;justify-content:space-between;align-items:baseline;font-weight:800;color:var(--mute);font-size:15px}
+.day span:first-child{text-transform:capitalize}
+.row{display:flex;gap:10px;align-items:center;background:#fff;border-radius:16px;padding:10px 12px;margin:6px 0;box-shadow:0 2px 8px rgba(80,40,20,.06)}
+.row .ic{width:42px;height:42px;border-radius:12px;background:#fff1e6;display:grid;place-items:center;font-size:22px;flex:none}
+.row .bd{flex:1;min-width:0}
+.row .t{font-weight:800;line-height:1.2}
+.row .s{font-size:14px;color:var(--mute);line-height:1.25;margin-top:2px}
+.row .d{font-weight:800;font-size:17px;white-space:nowrap;text-align:right}
+.row .x{font-size:13px;color:var(--mute);padding:4px 0 0;display:block;margin-left:auto}
+.row.aj{background:#f7f4ff}
+.confirm{display:flex;gap:6px;margin-top:6px}
+.confirm button{padding:6px 12px;border-radius:10px;font-weight:800;font-size:14px;background:#eee}
+.confirm .si{background:var(--red);color:#fff}
+.empty{text-align:center;color:var(--mute);padding:30px 10px;font-weight:700}
+
+/* ---------- Hoja manual ---------- */
+#sheet{position:fixed;inset:0;background:rgba(42,34,51,.45);display:none;align-items:flex-end;z-index:20}
+#sheet.on{display:flex}
+#sheet .in{background:var(--bg);width:100%;border-radius:26px 26px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92dvh;overflow:auto;animation:up .3s ease-out}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+#sheet h3{font-family:"Baloo 2";font-size:26px;margin:0 0 8px}
+#sheet .lbl{font-weight:800;color:var(--mute);font-size:15px;margin:12px 0 6px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{flex:1;min-width:30%;padding:12px 8px;border-radius:14px;background:#fff;border:2px solid var(--line);font-weight:800;font-size:16px}
+.seg button.on{border-color:var(--coral);background:#fff0ea}
+#sheet input{width:100%;height:52px;border-radius:14px;border:2px solid var(--line);padding:0 14px;font-size:19px;background:#fff}
+#mPrev{margin:14px 0;padding:12px;background:#fff;border-radius:14px;font-weight:800;line-height:1.35}
+.big{width:100%;padding:15px;border-radius:16px;font-weight:800;font-size:19px;background:var(--green);color:#fff;margin-top:6px}
+.ghost{width:100%;padding:12px;font-weight:800;color:var(--mute);margin-top:4px}
+
+#toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 16px;border-radius:16px;font-weight:800;opacity:0;transition:.3s;z-index:30;display:flex;gap:12px;align-items:center;max-width:92vw}
+#toast.on{opacity:1;transform:translateX(-50%)}
+#toast button{color:var(--gold);font-weight:800;text-decoration:underline}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="tagY" class="tag">Yoan</div>
+    <div id="tagA" class="tag">Arelis</div>
+    <div id="bubY" class="sbub"></div>
+    <div id="bubA" class="sbub"></div>
+    <div id="hud">
+      <div id="bal"><div id="balLbl">Cargando las cuentas…</div><div id="balAmt">$—</div></div>
+      <button id="whoBtn" type="button">Soy Yoan 🔁</button>
+    </div>
+    <div id="party">¡Tamos echa'o! 🎉</div>
+    <div id="sync">⏳ conectando…</div>
+  </div>
+
+  <div id="tabs">
+    <button type="button" data-t="chat" class="on">💬 Cuentín</button>
+    <button type="button" data-t="hist">📒 Historial</button>
+  </div>
+
+  <div id="chat" class="pane on"><div id="msgs"></div></div>
+  <div id="hist" class="pane"><div id="histList"></div></div>
+
+  <div id="chips"></div>
+  <form id="bar" autocomplete="off">
+    <label id="cam" title="Foto de recibo">📷<input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic" hidden></label>
+    <input id="txt" placeholder="Escríbele a Cuentín…" enterkeyhint="send">
+    <button id="send" type="submit" aria-label="Enviar">➤</button>
+  </form>
+</div>
+
+<!-- Hoja para anotar a mano -->
+<div id="sheet">
+  <div class="in">
+    <h3>✍️ Anotar a mano</h3>
+    <div class="lbl">¿Qué pasó?</div>
+    <div class="seg" id="mTipo">
+      <button type="button" data-v="medias">🛒 Gasto a medias</button>
+      <button type="button" data-v="completo">🎁 Gasto del otro</button>
+      <button type="button" data-v="pago">💵 Un pago</button>
+    </div>
+    <div class="lbl" id="mPagLbl">¿Quién pagó?</div>
+    <div class="seg" id="mPag">
+      <button type="button" data-v="yoan">🧔 Yoan</button>
+      <button type="button" data-v="arelis">👩 Arelis</button>
+    </div>
+    <div class="lbl">¿Cuánto? ($)</div>
+    <input id="mMonto" type="text" inputmode="decimal" placeholder="0.00">
+    <div class="lbl">¿De qué?</div>
+    <input id="mDesc" type="text" placeholder="Mercado, cigarros, luz…">
+    <div class="lbl">Fecha</div>
+    <input id="mFecha" type="date">
+    <div id="mPrev"></div>
+    <button type="button" class="big" id="mOk">✅ Anotar</button>
+    <button type="button" class="ghost" id="mNo">Cancelar</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+/* =========================================================
+   Utilidades y estado
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const round2 = n => Math.round(n * 100) / 100;
+const money = n => { const v = Math.abs(round2(n)); return "$" + (Number.isInteger(v) ? v : v.toFixed(2)); };
+const pad = n => String(n).padStart(2, "0");
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const NAME = { yoan: "Yoan", arelis: "la Tía" };
+const NAMEC = { yoan: "Yoan", arelis: "La Tía" };
+const other = p => p === "yoan" ? "arelis" : "yoan";
+const TIPOS = ["medias", "completo", "pago"];
+
+/* ---------- Configuración ---------- */
+const API = "https://eythwqbeatakgsvjhrbl.supabase.co/functions/v1/cuentas-claras";
+const HP = new URLSearchParams(location.hash.slice(1));
+let KEY = HP.get("k") || "";
+try { if (KEY) localStorage.setItem("cc_k", KEY); else KEY = localStorage.getItem("cc_k") || ""; } catch (e) {}
+async function api(action, payload = {}) {
+  const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ k: KEY, action }, payload)) });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) { const err = new Error((j && j.error) || ("HTTP " + r.status)); err.status = r.status; throw err; }
+  return j;
+}
+
+const S = {
+  movs: [], yo: "yoan", db: null, sample: null, imgs: false,
+  turns: [], loaded: false, canWrite: true, prevBal: null, busy: false
+};
+try { const v = HP.get("u") || localStorage.getItem("cc_yo"); if (v === "yoan" || v === "arelis") { S.yo = v; S.yoFixed = true; localStorage.setItem("cc_yo", v); } } catch (e) {}
+
+/* Delta = cuánto SUBE lo que Yoan le debe a la Tía (negativo = baja) */
+function deltaOf(m) {
+  const a = Number(m.monto) || 0;
+  if (m.tipo === "medias")   return m.pago === "arelis" ? a / 2 : -a / 2;
+  if (m.tipo === "completo") return m.pago === "arelis" ? a : -a;
+  if (m.tipo === "pago")     return m.pago === "yoan" ? -a : a;
+  return Number(m.delta) || 0; // ajuste
+}
+const dOf = m => (m.tipo === "ajuste" || !TIPOS.includes(m.tipo)) ? (Number(m.delta) || 0) : round2(deltaOf(m));
+const balance = () => round2(S.movs.reduce((s, m) => s + dOf(m), 0));
+
+function catFor(m) {
+  const t = (m.desc || "").toLowerCase();
+  if (m.tipo === "pago") return "💵";
+  const map = [["mercado","🛒"],["walmart","🛒"],["kroger","🛒"],["aldi","🛒"],["cigar","🚬"],["luz","💡"],["electric","💡"],["renta","🏠"],["rent","🏠"],
+    ["at&t","📱"],["att","📱"],["verizon","📱"],["iphone","📱"],["tablet","📱"],["internet","📶"],["café","☕"],["cafe","☕"],["tinte","💇"],
+    ["gas","⛽"],["comida","🍗"],["carne","🥩"],["queso","🧀"],["farmacia","💊"]];
+  for (const [k, e] of map) if (t.includes(k)) return e;
+  return "🧾";
+}
+
+/* Frases claras (para la Tía) */
+function lineOf(m) {
+  const p = NAMEC[m.pago], o = NAME[other(m.pago)], raw = m.desc || "algo";
+  const d = /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(raw) && !/^(Yoan|Arelis|Verizon|Walmart|Kroger|Aldi|AT&T)/.test(raw) ? raw[0].toLowerCase() + raw.slice(1) : raw;
+  const deudor = NAMEC[other(m.pago)], acreedor = NAME[m.pago];
+  if (m.tipo === "medias")   return `${deudor} le debe a ${acreedor} la mitad: ${money(m.monto/2)} (de ${money(m.monto)})`;
+  if (m.tipo === "completo") return `${deudor} le debe a ${acreedor} ${money(m.monto)}`;
+  if (m.tipo === "pago")     return `${p} le pagó ${money(m.monto)} a ${o} ✅`;
+  return d;
+}
+function effectOf(d) {
+  if (Math.abs(d) < 0.005) return { t: "No cambia nada", c: "" };
+  return d > 0 ? { t: `⬆️ La deuda de Yoan sube ${money(d)}`, c: "up" } : { t: `⬇️ La deuda de Yoan baja ${money(d)}`, c: "down" };
+}
+
+/* =========================================================
+   Escena 3D (Three.js)
+   ========================================================= */
+const W = (() => {
+  const canvas = $("#c"), stage = $("#stage");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+
+  scene.add(new THREE.HemisphereLight(0xfff4e6, 0xd99a7a, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+  sun.position.set(3, 6, 5); sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5 });
+  scene.add(sun);
+
+  const M = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.65, metalness: 0 }, o));
+  const mesh = (geo, mat, x = 0, y = 0, z = 0, parent) => {
+    const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true;
+    if (parent) parent.add(m); return m;
+  };
+
+  // Piso
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(5, 56), M(0xffe6cf));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(4.6, 5, 56), M(0xffcfae));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.01; scene.add(ring);
+
+  /* ---------- Personajes ---------- */
+  function person(kind) {
+    const isY = kind === "yoan";
+    const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+    const skin = M(isY ? 0xdba482 : 0xc98e6f);
+    const dark = M(0x161214);
+
+    // Piernas
+    if (isY) {
+      const pants = M(0x2c3446);
+      for (const x of [-0.17, 0.17]) {
+        mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 14), pants, x, 0.32, 0, body);
+        const s = mesh(new THREE.SphereGeometry(0.14, 14, 10), M(0x202020), x, 0.05, 0.05, body); s.scale.set(1, 0.6, 1.4);
+      }
+    } else {
+      const jeans = M(0x1d2537, { roughness: 0.8 }), stud = M(0xe8e8e8, { metalness: 0.9, roughness: 0.2 });
+      for (const x of [-0.17, 0.17]) {
+        mesh(new THREE.CylinderGeometry(0.13, 0.21, 0.66, 16), jeans, x, 0.34, 0, body);
+        const sx = x > 0 ? 1 : -1;
+        for (let i = 0; i < 6; i++) { // tachuelas a los lados
+          const y = 0.1 + i * 0.1, r = 0.21 - (y / 0.66) * 0.08 + 0.005;
+          mesh(new THREE.SphereGeometry(0.018, 6, 6), stud, x + sx * r, y, 0, body);
+        }
+        const s = mesh(new THREE.SphereGeometry(0.13, 14, 10), M(0x1a1416), x, 0.03, 0.05, body); s.scale.set(1, 0.5, 1.4);
+      }
+    }
+
+    // Torso
+    const shirt = isY ? M(0x1c1c22) : M(0xeadfc7, { roughness: 0.95 });
+    mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.74, 24), shirt, 0, 0.98, 0, body);
+    if (isY) { // estampado del pulóver
+      mesh(new THREE.BoxGeometry(0.42, 0.1, 0.02), M(0xe0607e), 0, 1.04, 0.38, body);
+      mesh(new THREE.BoxGeometry(0.36, 0.08, 0.02), M(0xf3f3f3), 0, 0.9, 0.39, body);
+    } else { // rayas del suéter tejido
+      const tan = M(0xc8ab86, { roughness: 1 });
+      for (const y of [0.78, 1.18]) { const t = mesh(new THREE.TorusGeometry(y > 1 ? 0.355 : 0.385, 0.025, 6, 32), tan, 0, y, 0, body); t.rotation.x = Math.PI / 2; }
+      mesh(new THREE.BoxGeometry(0.03, 0.6, 0.02), tan, 0, 0.98, 0.385, body);
+    }
+
+    // Brazos (pivote en el hombro)
+    function arm(side) {
+      const p = new THREE.Group(); p.position.set(side * 0.42, 1.28, 0); body.add(p);
+      if (isY) {
+        mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.22, 12), shirt, 0, -0.1, 0, p);
+        mesh(new THREE.CylinderGeometry(0.075, 0.07, 0.4, 12), skin, 0, -0.38, 0, p);
+      } else {
+        mesh(new THREE.CylinderGeometry(0.1, 0.085, 0.58, 12), shirt, 0, -0.28, 0, p);
+        const st = mesh(new THREE.TorusGeometry(0.093, 0.018, 6, 20), M(0xc8ab86), 0, -0.3, 0, p); st.rotation.x = Math.PI / 2;
+      }
+      mesh(new THREE.SphereGeometry(0.09, 12, 10), skin, 0, -0.62, 0, p);
+      p.rotation.z = side * 0.16;
+      return p;
+    }
+    const armL = arm(-1), armR = arm(1);
+
+    // Cabeza
+    const head = new THREE.Group(); head.position.y = 1.78; body.add(head);
+    mesh(new THREE.SphereGeometry(0.42, 32, 24), skin, 0, 0, 0, head);
+    for (const x of [-0.42, 0.42]) mesh(new THREE.SphereGeometry(0.07, 10, 8), skin, x, -0.02, 0, head); // orejas
+
+    const eyes = [];
+    for (const x of [-0.15, 0.15]) {
+      const e = mesh(new THREE.SphereGeometry(0.045, 12, 10), M(0x2b1d15), x, 0.04, 0.385, head); eyes.push(e);
+      const shine = mesh(new THREE.SphereGeometry(0.013, 6, 6), M(0xffffff), x + 0.015, 0.06, 0.425, head); eyes.push(shine);
+      const br = mesh(new THREE.BoxGeometry(0.13, 0.025, 0.03), dark, x, 0.17, 0.39, head);
+      br.rotation.z = (x > 0 ? -1 : 1) * (isY ? 0.12 : -0.08);
+    }
+
+    if (isY) {
+      // Pelo en punta
+      mesh(new THREE.SphereGeometry(0.43, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.36), M(0x1a1615), 0, 0.02, -0.01, head);
+      const spikeM = M(0x1a1615);
+      for (let i = 0; i < 11; i++) {
+        const a = (i / 11) * Math.PI * 2, r = i % 2 ? 0.2 : 0.12;
+        const c = mesh(new THREE.ConeGeometry(0.09, 0.3, 8), spikeM, Math.cos(a) * r, 0.42, Math.sin(a) * r * 0.8 + 0.03, head);
+        c.rotation.z = -Math.cos(a) * 0.5; c.rotation.x = Math.sin(a) * 0.4;
+      }
+      mesh(new THREE.ConeGeometry(0.11, 0.36, 8), spikeM, 0.02, 0.5, 0.12, head).rotation.x = 0.35;
+      // Barba (frente-abajo) + canas en la barbilla + bigote
+      mesh(new THREE.SphereGeometry(0.435, 32, 16, Math.PI * 0.08, Math.PI * 0.84, Math.PI * 0.56, Math.PI * 0.36), M(0x3a2b22, { side: THREE.DoubleSide }), 0, 0, 0, head);
+      const chin = mesh(new THREE.SphereGeometry(0.12, 14, 10), M(0xbdb4aa), 0, -0.36, 0.22, head); chin.scale.set(1.1, 0.9, 0.8);
+      mesh(new THREE.BoxGeometry(0.24, 0.05, 0.05), M(0x3a2b22), 0, -0.1, 0.405, head);
+      mesh(new THREE.BoxGeometry(0.1, 0.03, 0.03), M(0xc7726f), 0, -0.17, 0.4, head);
+      // Gafas negras
+      const gm = M(0x0d0d0d, { roughness: 0.3 });
+      for (const x of [-0.155, 0.155]) mesh(new THREE.TorusGeometry(0.115, 0.025, 8, 28), gm, x, 0.04, 0.43, head);
+      mesh(new THREE.BoxGeometry(0.08, 0.022, 0.022), gm, 0, 0.07, 0.44, head);
+      for (const x of [-0.27, 0.27]) mesh(new THREE.BoxGeometry(0.02, 0.022, 0.36), gm, x * 1.4, 0.06, 0.25, head);
+      mesh(new THREE.SphereGeometry(0.025, 8, 8), M(0xd4a640, { metalness: 0.8, roughness: 0.2 }), 0.46, -0.08, 0, head); // arete
+    } else {
+      // Melena corta (bob)
+      const hm = M(0x15100f, { side: THREE.DoubleSide, roughness: 0.5 });
+      mesh(new THREE.SphereGeometry(0.455, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.42), hm, 0, 0.03, 0, head);
+      mesh(new THREE.SphereGeometry(0.47, 32, 16, Math.PI * 0.86, Math.PI * 1.28, 0, Math.PI * 0.68), hm, 0, 0.02, -0.01, head);
+      const bang = mesh(new THREE.SphereGeometry(0.3, 18, 12), hm, 0.1, 0.27, 0.27, head);
+      bang.scale.set(1.35, 0.42, 0.55); bang.rotation.z = -0.3;
+      // Labios y mejillas
+      const lip = mesh(new THREE.TorusGeometry(0.06, 0.018, 6, 14, Math.PI), M(0xb4506a), 0, -0.15, 0.39, head);
+      lip.rotation.z = Math.PI;
+      for (const x of [-0.24, 0.24]) {
+        const b = mesh(new THREE.CircleGeometry(0.06, 16), new THREE.MeshBasicMaterial({ color: 0xff9aa2, transparent: true, opacity: 0.45 }), x, -0.06, 0.36, head);
+        b.rotation.y = x > 0 ? 0.55 : -0.55; b.castShadow = false;
+      }
+      const gold = M(0xd4a640, { metalness: 0.85, roughness: 0.2 });
+      for (const x of [-0.45, 0.45]) mesh(new THREE.SphereGeometry(0.035, 8, 8), gold, x, -0.13, 0, head);
+      // Teléfono dorado en la mano derecha
+      armR.rotation.x = -0.9; armR.rotation.z = 0.05;
+      mesh(new THREE.BoxGeometry(0.15, 0.27, 0.03), gold, 0, -0.7, 0.07, armR).rotation.x = 0.9;
+    }
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    return { g, body, head, armL, armR, eyes, kind, jump: 0, wave: 0, happy: 0 };
+  }
+
+  const Y = person("yoan"), A = person("arelis");
+  Y.g.position.set(-1.95, 0, 0.2); Y.g.rotation.y = 0.35;
+  A.g.position.set(1.95, 0, 0.2); A.g.rotation.y = -0.35;
+  scene.add(Y.g, A.g);
+
+  /* ---------- Balanza ---------- */
+  const goldM = M(0xd9a441, { metalness: 0.6, roughness: 0.3 });
+  const woodM = M(0x9b5d3a);
+  mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.12, 32), woodM, 0, 0.06, 0, scene);
+  mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.55, 12), goldM, 0, 0.85, 0, scene);
+  mesh(new THREE.SphereGeometry(0.09, 16, 12), goldM, 0, 1.64, 0, scene);
+  const beam = new THREE.Group(); beam.position.set(0, 1.62, 0); scene.add(beam);
+  mesh(new THREE.BoxGeometry(1.72, 0.06, 0.07), goldM, 0, 0, 0, beam);
+  const plates = [-1, 1].map(side => {
+    const p = new THREE.Group(); scene.add(p);
+    mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.06, 32), goldM, 0, 0, 0, p);
+    const rod = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.5, 6), goldM, 0, 0.25, 0, p);
+    const stack = new THREE.Group(); stack.position.y = 0.03; p.add(stack);
+    return { p, rod, stack, side };
+  });
+  const coinGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.045, 24);
+  const coinM = M(0xffc83d, { metalness: 0.7, roughness: 0.25, emissive: 0x3a2800 });
+
+  // Brillitos flotando
+  const sparkles = [];
+  for (let i = 0; i < 14; i++) {
+    const s = new THREE.Mesh(new THREE.OctahedronGeometry(0.04 + Math.random() * 0.04), new THREE.MeshBasicMaterial({ color: [0xffffff, 0xffd166, 0xff9aa2][i % 3] }));
+    s.userData = { r: 1.2 + Math.random() * 3, a: Math.random() * 6.28, y: 0.5 + Math.random() * 2.8, s: 0.2 + Math.random() * 0.4 };
+    scene.add(s); sparkles.push(s);
+  }
+
+  /* ---------- Estado de animación ---------- */
+  let angle = 0, targetAngle = 0, stackSide = 0, stackCount = 0;
+  const flyers = [], confetti = [];
+  const clock = new THREE.Clock();
+
+  function setStack(side, count, dropLast) {
+    for (const pl of plates) while (pl.stack.children.length) pl.stack.remove(pl.stack.children[0]);
+    if (!side) return;
+    const pl = plates[side < 0 ? 0 : 1];
+    for (let i = 0; i < count; i++) {
+      const c = new THREE.Mesh(coinGeo, coinM); c.castShadow = true;
+      c.userData.ty = i * 0.047 + 0.02;
+      c.userData.drop = (dropLast && i >= count - dropLast) ? 1.6 + (i - (count - dropLast)) * 0.4 : 0;
+      c.position.set((Math.random() - 0.5) * 0.06, c.userData.ty + c.userData.drop, (Math.random() - 0.5) * 0.06);
+      c.rotation.y = Math.random() * 6;
+      pl.stack.add(c);
+    }
+  }
+
+  function setBalance(b, animate) {
+    targetAngle = Math.sign(b) * Math.min(1, Math.sqrt(Math.abs(b) / 200)) * 0.3;
+    const side = Math.abs(b) < 0.005 ? 0 : (b > 0 ? -1 : 1); // izquierda = Yoan
+    const count = side ? Math.max(1, Math.min(16, Math.ceil(Math.abs(b) / 15))) : 0;
+    const drop = animate && side === stackSide && count > stackCount ? count - stackCount : (animate && side !== stackSide ? count : 0);
+    if (side !== stackSide || count !== stackCount) setStack(side, count, drop);
+    stackSide = side; stackCount = count;
+  }
+
+  function handPos(P) { const v = new THREE.Vector3(); P.armR.children[P.armR.children.length - 1].getWorldPosition(v); return v; }
+
+  function payFly(fromKind, toKind, n = 6) {
+    const F = fromKind === "yoan" ? Y : A, T = fromKind === "yoan" ? A : Y;
+    F.wave = 1.2; T.happy = 1.6;
+    for (let i = 0; i < n; i++) {
+      const c = new THREE.Mesh(coinGeo, coinM); c.castShadow = true; scene.add(c);
+      const from = handPos(F), to = T.g.position.clone().add(new THREE.Vector3(0, 1.1, 0.3));
+      flyers.push({ c, from, to, t: -i * 0.12, dur: 0.9 });
+    }
+  }
+  function dropCoin(kind) { (kind === "yoan" ? Y : A).wave = 1; }
+
+  function party() {
+    Y.happy = 3; A.happy = 3;
+    const cols = [0xff7a59, 0xffd166, 0x21a366, 0x4cc9f0, 0xf72585, 0xffffff];
+    for (let i = 0; i < 90; i++) {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.13), new THREE.MeshBasicMaterial({ color: cols[i % cols.length], side: THREE.DoubleSide }));
+      p.position.set((Math.random() - 0.5) * 6, 3.5 + Math.random() * 2.5, (Math.random() - 0.5) * 2);
+      p.userData = { vy: -(0.8 + Math.random() * 0.9), vx: (Math.random() - 0.5) * 0.6, r: Math.random() * 6, life: 4.5 };
+      scene.add(p); confetti.push(p);
+    }
+  }
+
+  /* ---------- Toques en los personajes ---------- */
+  const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+  const lines = {
+    yoan: ["¡Ya mismo te pago, Tía! 😅", "¿Quién se comió el jamón? 🧀", "Anótalo, anótalo… ✍️", "Tranquila que yo cumplo 💪", "¿Y el café de hoy? ☕"],
+    arelis: ["¡Págame, mi'jo! 💅", "Mira que lo tengo anotado 👀", "¡Ay, qué lindo! 💖", "Esa cuenta no me cuadra 🤨", "¡Echa pa'cá! 💵"]
+  };
+  canvas.addEventListener("pointerdown", e => {
+    const r = canvas.getBoundingClientRect();
+    ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ptr, camera);
+    for (const P of [Y, A]) if (ray.intersectObject(P.g, true).length) { P.jump = 1; say(P.kind, lines[P.kind][Math.floor(Math.random() * lines[P.kind].length)]); Sfx.boing(); break; }
+  });
+
+  const bubT = {};
+  function say(kind, text, ms = 2600) {
+    const el = kind === "yoan" ? $("#bubY") : $("#bubA");
+    el.textContent = text; el.classList.add("on");
+    clearTimeout(bubT[kind]); bubT[kind] = setTimeout(() => el.classList.remove("on"), ms);
+  }
+
+  /* ---------- Tamaño ---------- */
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    const halfW = 3.0, t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    camera.userData.dist = Math.max(5.6, halfW / (t * camera.aspect));
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+  resize();
+
+  /* ---------- Etiquetas HTML sobre las cabezas ---------- */
+  const tmp = new THREE.Vector3();
+  function place(el, P, yOff) {
+    tmp.copy(P.g.position); tmp.y += yOff + P.body.position.y; tmp.project(camera);
+    el.style.left = ((tmp.x + 1) / 2 * stage.clientWidth) + "px";
+    el.style.top = ((1 - tmp.y) / 2 * stage.clientHeight) + "px";
+  }
+
+  /* ---------- Bucle ---------- */
+  let blinkT = 2;
+  function animP(P, t, dt, ph) {
+    let y = Math.abs(Math.sin(t * 2 + ph)) * 0.03;
+    if (P.jump > 0) { P.jump -= dt * 1.6; y += Math.sin(Math.max(0, P.jump) * Math.PI) * 0.5; }
+    if (P.happy > 0) { P.happy -= dt; y += Math.abs(Math.sin(P.happy * 9)) * 0.28; }
+    P.body.position.y = y;
+    P.head.rotation.z = Math.sin(t * 1.3 + ph) * 0.06;
+    P.head.rotation.y = Math.sin(t * 0.7 + ph) * 0.15;
+    const base = P.kind === "arelis" ? -0.16 : -0.16;
+    if (P.wave > 0 || P.happy > 0) {
+      P.wave = Math.max(0, P.wave - dt);
+      P.armL.rotation.z = -2.5 + Math.sin(t * 14) * 0.35;
+      if (P.kind === "yoan") P.armR.rotation.z = 2.5 - Math.sin(t * 14) * 0.35;
+    } else {
+      P.armL.rotation.z += (base - P.armL.rotation.z) * 0.15;
+      if (P.kind === "yoan") P.armR.rotation.z += (0.16 - P.armR.rotation.z) * 0.15;
+    }
+  }
+
+  function loop() {
+    const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+    animP(Y, t, dt, 0); animP(A, t, dt, 1.7);
+
+    // parpadeo
+    blinkT -= dt;
+    const blink = blinkT < 0.12 && blinkT > 0;
+    if (blinkT < 0) blinkT = 2 + Math.random() * 3;
+    for (const P of [Y, A]) P.eyes.forEach((e, i) => { if (i % 2 === 0) e.scale.y = blink ? 0.15 : 1; });
+
+    // balanza
+    angle += (targetAngle + Math.sin(t * 1.8) * 0.015 - angle) * 0.06;
+    beam.rotation.z = angle;
+    plates.forEach(pl => {
+      const ex = pl.side * 0.82 * Math.cos(angle), ey = 1.62 + pl.side * 0.82 * Math.sin(angle);
+      pl.p.position.set(ex, ey - 0.52, 0);
+      pl.stack.children.forEach(c => {
+        const u = c.userData; if (!(u.drop > 0)) return;
+        u.drop -= dt * 3.2;
+        if (u.drop <= 0) { u.drop = 0; Sfx.tink(); }
+        c.position.y = u.ty + u.drop;
+      });
+    });
+
+    // monedas volando
+    for (let i = flyers.length - 1; i >= 0; i--) {
+      const f = flyers[i]; f.t += dt;
+      const u = Math.max(0, Math.min(1, f.t / f.dur));
+      f.c.visible = f.t > 0;
+      f.c.position.lerpVectors(f.from, f.to, u); f.c.position.y += Math.sin(u * Math.PI) * 1.3;
+      f.c.rotation.x += dt * 12; f.c.rotation.z += dt * 7;
+      if (u >= 1) { scene.remove(f.c); flyers.splice(i, 1); Sfx.tink(); }
+    }
+    // confeti
+    for (let i = confetti.length - 1; i >= 0; i--) {
+      const p = confetti[i], d = p.userData; d.life -= dt;
+      p.position.y += d.vy * dt; p.position.x += Math.sin(t * 3 + d.r) * d.vx * dt;
+      p.rotation.x += dt * 4; p.rotation.y += dt * 3;
+      if (d.life < 0 || p.position.y < 0) { scene.remove(p); confetti.splice(i, 1); }
+    }
+    sparkles.forEach(s => { const u = s.userData; s.position.set(Math.cos(u.a + t * u.s) * u.r, u.y + Math.sin(t + u.a) * 0.15, Math.sin(u.a + t * u.s) * u.r * 0.5 - 1); s.rotation.y += dt * 2; });
+
+    // cámara
+    const dist = camera.userData.dist || 6;
+    camera.position.set(Math.sin(t * 0.25) * 0.5, 2.0 + dist * 0.05, dist);
+    camera.lookAt(0, 1.45, 0);
+
+    place($("#tagY"), Y, 2.5); place($("#tagA"), A, 2.5);
+    place($("#bubY"), Y, 3.0); place($("#bubA"), A, 3.0);
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  return { setBalance, payFly, dropCoin, party, say, jump: k => { (k === "yoan" ? Y : A).jump = 1; } };
+})();
+
+/* =========================================================
+   Sonidos (WebAudio, sin archivos)
+   ========================================================= */
+const Sfx = (() => {
+  let ctx = null;
+  const ac = () => { try { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === "suspended") ctx.resume(); } catch (e) {} return ctx; };
+  document.addEventListener("pointerdown", ac, { once: true });
+  function tone(f1, f2, dur, type = "sine", vol = 0.08) {
+    const c = ctx; if (!c || c.state !== "running") return;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f1, c.currentTime); o.frequency.exponentialRampToValueAtTime(f2, c.currentTime + dur);
+    g.gain.setValueAtTime(vol, c.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+    o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + dur);
+  }
+  let last = 0;
+  return {
+    tink: () => { const n = performance.now(); if (n - last < 60) return; last = n; tone(1800, 2600, 0.12, "triangle", 0.05); },
+    boing: () => { ac(); tone(220, 520, 0.25, "sine", 0.1); },
+    yay: () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, f * 1.01, 0.18, "triangle", 0.07), i * 110)); }
+  };
+})();
+
+/* =========================================================
+   Interfaz
+   ========================================================= */
+function toast(text, undo) {
+  const t = $("#toast"); t.textContent = "";
+  const s = document.createElement("span"); s.textContent = text; t.appendChild(s);
+  if (undo) { const b = document.createElement("button"); b.type = "button"; b.textContent = "Deshacer"; b.onclick = () => { undo(); t.classList.remove("on"); }; t.appendChild(b); }
+  t.classList.add("on"); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("on"), undo ? 6000 : 3000);
+}
+
+function renderWho() {
+  $("#whoBtn").textContent = (S.yo === "yoan" ? "🧔 Soy Yoan" : "👩 Soy Arelis") + " 🔁";
+  $("#txt").placeholder = S.yo === "yoan" ? "Ej: le pagué 120 a la Tía" : "Ej: pagué el mercado, 84";
+  renderChips();
+}
+$("#whoBtn").onclick = () => {
+  S.yo = other(S.yo); try { localStorage.setItem("cc_yo", S.yo); } catch (e) {}
+  renderWho(); renderBal(false); W.jump(S.yo);
+  toast(S.yo === "yoan" ? "Ahora eres Yoan 🧔" : "Ahora eres Arelis 👩");
+};
+
+function renderBal(animate) {
+  const b = balance(), lbl = $("#balLbl"), amt = $("#balAmt");
+  if (!S.loaded) return;
+  amt.className = "";
+  if (Math.abs(b) < 0.005) { lbl.textContent = "¡Estamos a mano!"; amt.textContent = "$0 🎉"; amt.classList.add("cero"); }
+  else if (b > 0) { lbl.textContent = "Yoan le debe a la Tía"; amt.textContent = money(b); amt.classList.add("debe"); }
+  else { lbl.textContent = "La Tía le debe a Yoan"; amt.textContent = money(b); amt.classList.add("debe"); }
+  W.setBalance(b, animate);
+  const zero = Math.abs(b) < 0.005;
+  $("#party").classList.toggle("on", zero);
+  if (animate && S.prevBal !== null && Math.abs(S.prevBal - b) > 0.004) {
+    $("#bal").classList.remove("pop"); void $("#bal").offsetWidth; $("#bal").classList.add("pop");
+    if (zero && Math.abs(S.prevBal) >= 0.005) { W.party(); Sfx.yay(); }
+  }
+  S.prevBal = b;
+}
+
+/* ---------- Historial ---------- */
+const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"], MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+function niceDate(f) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ""); if (!m) return "Sin fecha";
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  if (f === today()) return "Hoy";
+  return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
+}
+const sorted = () => S.movs.slice().sort((a, b) => (a.fecha || "").localeCompare(b.fecha || "") || (a.ts || 0) - (b.ts || 0));
+
+function renderHist() {
+  const box = $("#histList"); box.textContent = "";
+  const list = sorted();
+  if (!list.length) { const e = document.createElement("div"); e.className = "empty"; e.textContent = S.loaded ? "Todavía no hay nada anotado. ¡Háblale a Cuentín! 🐷" : "Cargando…"; box.appendChild(e); return; }
+  // saldo corrido por día
+  let run = 0; const endOfDay = {};
+  for (const m of list) { run = round2(run + dOf(m)); endOfDay[m.fecha] = run; }
+  let curDay = null;
+  for (const m of list.slice().reverse()) {
+    if (m.fecha !== curDay) {
+      curDay = m.fecha;
+      const h = document.createElement("div"); h.className = "day";
+      const a = document.createElement("span"); a.textContent = niceDate(m.fecha);
+      const s = document.createElement("span"); const eb = endOfDay[m.fecha];
+      s.textContent = Math.abs(eb) < 0.005 ? "Saldo: a mano ✅" : `Saldo: ${eb > 0 ? "Yoan debe" : "Tía debe"} ${money(eb)}`;
+      h.append(a, s); box.appendChild(h);
+    }
+    const r = document.createElement("div"); r.className = "row" + (m.tipo === "ajuste" ? " aj" : "");
+    const ic = document.createElement("div"); ic.className = "ic"; ic.textContent = m.cat || catFor(m);
+    const bd = document.createElement("div"); bd.className = "bd";
+    const t = document.createElement("div"); t.className = "t"; t.textContent = m.desc || "Movimiento";
+    const s = document.createElement("div"); s.className = "s";
+    const quien = m.por ? ` · anotó ${m.por === "yoan" ? "Yoan" : "Arelis"}` : "";
+    s.textContent = (m.tipo === "ajuste" ? "Cuadre de la cuenta" : lineOf(m)) + quien;
+    bd.append(t, s);
+    const right = document.createElement("div");
+    const d = document.createElement("div"); const dv = dOf(m);
+    d.className = "d " + (dv > 0 ? "up" : "down"); d.textContent = (dv > 0 ? "+" : "−") + money(dv);
+    const cap = document.createElement("div"); cap.style.cssText = "font-size:12px;font-weight:800;text-align:right";
+    cap.className = dv > 0 ? "up" : "down"; cap.textContent = dv > 0 ? "Yoan debe más" : "Yoan debe menos";
+    const x = document.createElement("button"); x.type = "button"; x.className = "x"; x.textContent = "🗑️ borrar";
+    x.onclick = () => askDelete(r, m);
+    right.append(d, cap, x);
+    r.append(ic, bd, right); box.appendChild(r);
+  }
+}
+function askDelete(row, m) {
+  if (row.querySelector(".confirm")) return;
+  const c = document.createElement("div"); c.className = "confirm";
+  const t = document.createElement("span"); t.textContent = "¿Borrar esto?"; t.style.fontWeight = 800; t.style.fontSize = "14px"; t.style.alignSelf = "center";
+  const si = document.createElement("button"); si.type = "button"; si.className = "si"; si.textContent = "Sí, borrar";
+  const no = document.createElement("button"); no.type = "button"; no.textContent = "No";
+  si.onclick = () => removeMov(m); no.onclick = () => c.remove();
+  c.append(t, si, no); row.querySelector(".bd").appendChild(c);
+}
+
+/* ---------- Guardar / borrar ---------- */
+function writeErr(e) {
+  if (e && e.status === 401) toast("Este link no es válido. Pídele el link a Yoan 🔑");
+  else toast("No se pudo. Revisa el internet y prueba otra vez 📡");
+}
+async function saveMov(m) {
+  const doc = {
+    fecha: /^\d{4}-\d{2}-\d{2}$/.test(m.fecha || "") ? m.fecha : today(),
+    desc: String(m.desc || (m.tipo === "pago" ? "Pago" : "Gasto")).slice(0, 80),
+    monto: round2(Number(m.monto)), tipo: m.tipo, pago: m.pago,
+    cat: m.cat || catFor(m), por: S.yo
+  };
+  try {
+    const row = await api("add", { mov: doc });
+    S.movs.push(row); afterChange([{ d: row }]);
+    toast("✅ ¡Anotado!", () => removeMov(row, true));
+    return true;
+  } catch (e) { writeErr(e); return false; }
+}
+async function removeMov(m, undo) {
+  try { await api("del", { id: m.id }); S.movs = S.movs.filter(x => x.id !== m.id); afterChange(); toast(undo ? "Deshecho ↩️" : "Borrado 🗑️"); }
+  catch (e) { writeErr(e); }
+}
+
+function afterChange(added) {
+  if (added) for (const { d } of added) {
+    if (d.tipo === "pago") W.payFly(d.pago, other(d.pago));
+    else W.dropCoin(d.pago);
+  }
+  renderBal(true); renderHist();
+}
+
+/* ---------- Chat ---------- */
+function addMsg(who, text, img) {
+  const m = document.createElement("div"); m.className = "msg " + (who === "me" ? "me" : "bot");
+  const av = document.createElement("div"); av.className = "av"; av.textContent = who === "me" ? (S.yo === "yoan" ? "🧔" : "👩") : "🐷";
+  const tx = document.createElement("div"); tx.className = "tx"; tx.textContent = text || "";
+  if (img) { const i = document.createElement("img"); i.src = URL.createObjectURL(img); i.alt = "recibo"; tx.appendChild(i); }
+  m.append(av, tx); $("#msgs").appendChild(m); scrollChat();
+  return m;
+}
+const scrollChat = () => { const p = $("#chat"); requestAnimationFrame(() => p.scrollTop = p.scrollHeight); };
+
+function propCard(m) {
+  const card = document.createElement("div"); card.className = "prop";
+  const ln = document.createElement("div"); ln.className = "ln";
+  const ef = document.createElement("div"); ef.className = "ef";
+  const btns = document.createElement("div"); btns.className = "btns";
+  const ok = document.createElement("button"); ok.type = "button"; ok.className = "ok"; ok.textContent = "✅ Anotar";
+  const flip = document.createElement("button"); flip.type = "button";
+  const half = document.createElement("button"); half.type = "button";
+  const no = document.createElement("button"); no.type = "button"; no.textContent = "✖️ No";
+  const draw = () => {
+    ln.textContent = `${m.cat || catFor(m)} ${lineOf(m)}`;
+    const e = effectOf(deltaOf(m)); ef.textContent = e.t; ef.className = "ef " + e.c;
+    flip.textContent = "🔄 Es al revés";
+    half.textContent = m.tipo === "medias" ? "🎁 Es todo del otro" : "🛒 Es a medias";
+    half.style.display = m.tipo === "pago" ? "none" : "";
+    if (m.fecha && m.fecha !== today()) ln.textContent += ` (${niceDate(m.fecha)})`;
+  };
+  flip.onclick = () => { m.pago = other(m.pago); draw(); };
+  half.onclick = () => { m.tipo = m.tipo === "medias" ? "completo" : "medias"; m.cat = catFor(m); draw(); };
+  no.onclick = () => { card.classList.add("no"); btns.remove(); };
+  ok.onclick = async () => {
+    ok.disabled = true; ok.textContent = "Guardando…";
+    if (await saveMov(m)) { card.classList.add("done"); btns.remove(); const d = document.createElement("div"); d.textContent = "✅ Anotado"; d.style.fontWeight = 800; d.style.color = "var(--green)"; card.appendChild(d); }
+    else { ok.disabled = false; ok.textContent = "✅ Anotar"; }
+  };
+  btns.append(ok, flip, half, no); card.append(ln, ef, btns); draw();
+  $("#msgs").appendChild(card); scrollChat();
+}
+
+function rules() {
+  const recent = sorted().slice(-10).map(m => `${m.fecha} | ${m.desc} | ${m.tipo} | pagó ${m.pago || "-"} | $${m.monto ?? ""} | efecto ${dOf(m) > 0 ? "+" : ""}${dOf(m)}`).join("\n");
+  const b = balance();
+  return `Eres "Cuentín" 🐷, el ayudante de una libreta de cuentas entre Yoan y su Tía Arelis, que viven juntos y comparten gastos. Hablas en español, cariñoso, breve y con un toque de humor caribeño (ej. "tamos echa'o" = estamos a mano). Arelis es mayor: usa frases cortas y claras.
+
+Hoy es ${today()}. Quien te escribe ahora es: ${S.yo === "yoan" ? "YOAN" : "ARELIS (la Tía)"}.
+Saldo actual: ${Math.abs(b) < 0.005 ? "están a mano ($0)" : b > 0 ? `Yoan le debe a la Tía $${b}` : `la Tía le debe a Yoan $${-b}`}.
+Últimos movimientos (fecha | descripción | tipo | quién pagó | monto | efecto en lo que Yoan debe):
+${recent || "(ninguno)"}
+
+TU TRABAJO: entender lo que te dicen (o la foto de un recibo) y proponer movimientos para anotar. La app le muestra una tarjeta a la persona para que confirme; tú NO anotas nada directo.
+
+Cada movimiento tiene:
+- "tipo":
+  · "medias" = gasto de la casa que se reparte a la mitad (mercado, luz, internet, renta compartida, cosas para los dos). "pago" = quién pagó la cuenta completa. Usa el monto TOTAL.
+  · "completo" = alguien pagó algo que es solo del otro, o el monto que dicen ya es la parte que se debe (ej. "te tengo 17 del mercado" → completo 17). "pago" = quién lo pagó/adelantó.
+  · "pago" = dinero entregado para saldar la deuda. "pago" = quién entregó el dinero.
+- "pago": "yoan" o "arelis".
+- "monto": número positivo en dólares. NUNCA inventes montos: si falta el monto, pregunta y deja movimientos vacío.
+- "desc": corta (ej. "Mercado", "2 cajas de cigarro", "Luz").
+- "fecha": "YYYY-MM-DD" (hoy si no dicen otra).
+- "cat": un emoji (🛒 mercado, 🚬 cigarros, 💡 luz, 🏠 renta, 📱 teléfono, 💵 pago, ☕ café, 🧾 otro).
+
+Costumbres de esta casa:
+- Los cigarros son de Yoan. Si Yoan dice "gasté/cogí X en cigarros, anótamelo", se lo debe a la Tía: tipo "completo", pago "arelis".
+- "Le pagué 120 a la Tía" (dice Yoan) → tipo "pago", pago "yoan". "Yoan me dio 50" (dice Arelis) → pago "yoan".
+- "Pagué el mercado, 84" → "medias", pago = quien habla. Recibo de supermercado sin más contexto → "medias", pago = quien habla, monto = TOTAL del recibo.
+- Si preguntan cuánto se debe o por el historial, responde con los datos de arriba y movimientos vacío.
+- Si no está claro quién pagó, elige lo más probable y dilo en la respuesta (la persona puede voltearlo en la tarjeta).
+
+Responde SOLO con JSON así:
+{"respuesta":"texto corto (1-2 frases) para la persona","movimientos":[{"desc":"Mercado","monto":84,"tipo":"medias","pago":"arelis","fecha":"${today()}","cat":"🛒"}]}`;
+}
+
+function cleanMovs(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.slice(0, 6).map(x => ({
+    desc: String(x && x.desc || "").slice(0, 80) || "Gasto",
+    monto: round2(Number(x && x.monto)),
+    tipo: TIPOS.includes(x && x.tipo) ? x.tipo : "medias",
+    pago: (x && x.pago) === "arelis" ? "arelis" : (x && x.pago) === "yoan" ? "yoan" : S.yo,
+    fecha: /^\d{4}-\d{2}-\d{2}$/.test(x && x.fecha || "") ? x.fecha : today(),
+    cat: typeof (x && x.cat) === "string" ? Array.from(x.cat).slice(0, 2).join("") : ""
+  })).filter(m => isFinite(m.monto) && m.monto > 0 && m.monto < 100000);
+}
+
+function localAnswer(q) {
+  const b = balance();
+  if (Math.abs(b) < 0.005) return "¡Tamos echa'o! Nadie le debe a nadie 🎉";
+  if (b > 0) return `Yoan le debe a la Tía ${money(b)} 💸`;
+  return `La Tía le debe a Yoan ${money(b)} 😎`;
+}
+
+/* Entiende frases sencillas sin IA */
+function localParse(text) {
+  const t = " " + text.toLowerCase() + " ";
+  const nums = [...t.matchAll(/(\d+(?:[.,]\d{1,2})?)/g)].map(m => parseFloat(m[1].replace(",", "."))).filter(n => n > 0);
+  if (!nums.length) return null;
+  const monto = Math.max(...nums), me = S.yo, ot = other(me);
+  const kw = [["mercado","Mercado"],["luz","Luz"],["renta","Renta"],["at&t","AT&T"],["att","AT&T"],["internet","Internet"],["café","Café"],["cafe","Café"],["carne","Carne"],["pan ","Pan"],["gas","Gasolina"],["tinte","Tinte"],["farmacia","Farmacia"],["comida","Comida"]];
+  const found = kw.find(([k]) => t.includes(k));
+  let desc = found ? found[1] : text.replace(/[\d$.,]+/g, "").replace(/\s+/g, " ").trim().slice(0, 40) || "Gasto";
+  desc = desc[0].toUpperCase() + desc.slice(1);
+  if (/(me pag[oó]|me dio|me mand[oó]|me abon[oó])/.test(t)) return { tipo: "pago", pago: ot, monto, desc: "Pago" };
+  if (/(le pagu[eé]|te pagu[eé]|le di |te di |le mand[eé]|te mand[eé]|abon[eé]|pagu[eé] a)/.test(t)) return { tipo: "pago", pago: me, monto, desc: "Pago" };
+  if (/cigarr/.test(t)) return { tipo: "completo", pago: "arelis", monto, desc: (nums.length > 1 ? nums[0] + " " : "") + "cigarros".replace(/^/, nums.length > 1 && nums[0] > 1 ? "cajas de " : "caja de ") };
+  if (/(te tengo|te debo|le debo|le tengo)/.test(t)) return { tipo: "completo", pago: ot, monto, desc };
+  if (/(me debes|me debe)/.test(t)) return { tipo: "completo", pago: me, monto, desc };
+  let pago = me;
+  if (/(la t[ií]a pag|arelis pag|pag[oó] la t[ií]a|pag[oó] arelis)/.test(t)) pago = "arelis";
+  if (/(yoan pag|pag[oó] yoan)/.test(t)) pago = "yoan";
+  return { tipo: "medias", pago, monto, desc };
+}
+
+/* Lee el total de un recibo en el teléfono (sin IA) */
+let tessP = null;
+function loadTess() {
+  if (window.Tesseract) return Promise.resolve();
+  if (!tessP) tessP = new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  return tessP;
+}
+async function ocrReceipt(file) {
+  await loadTess();
+  const { data } = await Tesseract.recognize(file, "eng");
+  const lines = data.text.split("\n").map(l => l.trim()).filter(Boolean);
+  const amt = l => { const m = l.match(/(\d{1,5}[.,]\d{2})(?!.*\d[.,]\d{2})/); return m ? parseFloat(m[1].replace(",", ".")) : null; };
+  let total = null;
+  for (const l of lines) if (/total/i.test(l) && !/sub\s*-?\s*total/i.test(l) && amt(l)) total = amt(l);
+  if (total === null) { const all = lines.map(amt).filter(Boolean); if (all.length) total = Math.max(...all); }
+  const store = (lines.find(l => /[a-z]{3,}/i.test(l)) || "Recibo").replace(/[^\p{L}\p{N} &'-]/gu, "").trim().slice(0, 30);
+  return { total, store };
+}
+
+/* Achica la foto antes de mandarla */
+function shrink(file, max = 1400) {
+  return new Promise((res, rej) => {
+    const img = new Image(); img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL("image/jpeg", 0.82).split(",")[1]);
+    }; img.onerror = rej; img.src = URL.createObjectURL(file);
+  });
+}
+
+async function send(text, file) {
+  text = (text || "").trim();
+  if ((!text && !file) || S.busy) return;
+  addMsg("me", text || "📷 Te mando el recibo", file);
+  if (!file && /^(¿)?\s*cu[aá]nto\s+(le\s+)?(debo|me debe|debe|nos debemos)/i.test(text)) { addMsg("bot", localAnswer()); return; }
+  S.busy = true; $("#send").disabled = true;
+  const th = addMsg("bot", file ? "Leyendo el recibo" : "Pensando"); th.classList.add("think");
+  const userTurn = (file ? "[La persona mandó una FOTO DE UN RECIBO. Léela: comercio, fecha y TOTAL a pagar.] " : "") + (text || "Anota este recibo.");
+  try {
+    if (S.ai !== false) {
+      const payload = { system: rules(), turns: [...S.turns.slice(-8), { role: "user", content: userTurn }] };
+      if (file) payload.image = await shrink(file);
+      const r = await api("ask", payload);
+      if (r && r.noai) S.ai = false;
+      else {
+        th.remove();
+        const resp = String(r && r.respuesta || "Listo 👍").slice(0, 600), movs = cleanMovs(r && r.movimientos);
+        addMsg("bot", resp); movs.forEach(m => propCard(m));
+        S.turns.push({ role: "user", content: userTurn }, { role: "assistant", content: resp + (movs.length ? " (Propuse: " + movs.map(lineOf).join("; ") + ")" : "") });
+        return;
+      }
+    }
+    // Sin IA: entender en el teléfono
+    if (file) {
+      const { total, store } = await ocrReceipt(file); th.remove();
+      const hint = text ? localParse(text + " " + (total || "")) : null;
+      if (!total) { addMsg("bot", "No pude leer el total 😅. Escríbeme cuánto fue, ej: \"pagué el mercado, 84\""); return; }
+      addMsg("bot", `Leí el recibo de ${store}: total ${money(total)} 🧾. Revisa 👇`);
+      propCard(Object.assign({ desc: store || "Mercado", monto: total, tipo: "medias", pago: S.yo, fecha: today() }, hint || {}, { monto: total }));
+      return;
+    }
+    const m = localParse(text); th.remove();
+    if (!m) { addMsg("bot", "No vi el número 🤔. Dime algo como \"pagué el mercado, 84\" o \"le pagué 120 a la Tía\"."); return; }
+    m.fecha = today(); m.cat = catFor(m);
+    addMsg("bot", "Así lo entendí 👇 Si está al revés, toca 🔄."); propCard(m);
+  } catch (e) {
+    th.remove();
+    if (e && e.status === 401) addMsg("bot", "Este link no es válido 🔑. Pídele el link a Yoan.");
+    else addMsg("bot", "Se cayó la conexión 📡. Prueba otra vez, o usa ✍️ A mano.");
+  } finally { S.busy = false; $("#send").disabled = false; }
+}
+
+$("#bar").addEventListener("submit", e => { e.preventDefault(); const v = $("#txt").value; $("#txt").value = ""; send(v); });
+$("#file").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  const v = $("#txt").value; $("#txt").value = "";
+  send(v, f);
+});
+
+/* ---------- Atajos ---------- */
+function renderChips() {
+  const box = $("#chips"); box.textContent = "";
+  const y = S.yo === "yoan";
+  const chips = [
+    ["✍️ A mano", () => openSheet()],
+    [y ? "💵 Le pagué a la Tía" : "💵 Yoan me pagó", () => prefill(y ? "Le pagué $ a la Tía" : "Yoan me pagó $", y ? 11 : 15)],
+    ["🛒 Pagué el mercado", () => prefill("Pagué el mercado, $", 19)],
+    [y ? "🚬 Cigarros" : "🚬 Le compré cigarros", () => prefill(y ? "Anótame una caja de cigarros, $" : "Le compré cigarros a Yoan, $", y ? 32 : 28)],
+    ["❓ ¿Cuánto debo?", () => send(y ? "¿Cuánto le debo a la Tía?" : "¿Cuánto me debe Yoan?")],
+    ["📷 Foto de recibo", () => $("#file").click()]
+  ];
+  for (const [t, fn] of chips) { const b = document.createElement("button"); b.type = "button"; b.textContent = t; b.onclick = fn; box.appendChild(b); }
+}
+function prefill(t) { const i = $("#txt"); i.value = t; i.focus(); const pos = t.indexOf("$") + 1 || t.length; try { i.setSelectionRange(pos, pos); } catch (e) {} showTab("chat"); }
+
+/* ---------- Pestañas ---------- */
+function showTab(t) {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  $("#chat").classList.toggle("on", t === "chat"); $("#hist").classList.toggle("on", t === "hist");
+  if (t === "chat") scrollChat();
+}
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => showTab(b.dataset.t));
+
+/* ---------- Hoja manual ---------- */
+const MF = { tipo: "medias", pago: "yoan" };
+function openSheet() {
+  MF.tipo = "medias"; MF.pago = S.yo;
+  $("#mMonto").value = ""; $("#mDesc").value = ""; $("#mFecha").value = today();
+  drawSheet(); $("#sheet").classList.add("on");
+}
+function curManual() { return { tipo: MF.tipo, pago: MF.pago, monto: round2(parseFloat(String($("#mMonto").value).replace(",", ".")) || 0), desc: $("#mDesc").value.trim() || (MF.tipo === "pago" ? "Pago" : "Gasto"), fecha: $("#mFecha").value || today() }; }
+function drawSheet() {
+  document.querySelectorAll("#mTipo button").forEach(b => b.classList.toggle("on", b.dataset.v === MF.tipo));
+  document.querySelectorAll("#mPag button").forEach(b => b.classList.toggle("on", b.dataset.v === MF.pago));
+  $("#mPagLbl").textContent = MF.tipo === "pago" ? "¿Quién entregó el dinero?" : "¿Quién pagó?";
+  const m = curManual();
+  if (!(m.monto > 0)) { $("#mPrev").textContent = "Escribe cuánto fue 👆"; return; }
+  const e = effectOf(deltaOf(m));
+  $("#mPrev").textContent = `${catFor(m)} ${lineOf(m)}\n${e.t}`; $("#mPrev").style.whiteSpace = "pre-line";
+}
+document.querySelectorAll("#mTipo button").forEach(b => b.onclick = () => { MF.tipo = b.dataset.v; drawSheet(); });
+document.querySelectorAll("#mPag button").forEach(b => b.onclick = () => { MF.pago = b.dataset.v; drawSheet(); });
+["#mMonto", "#mDesc", "#mFecha"].forEach(s => $(s).addEventListener("input", drawSheet));
+$("#mNo").onclick = () => $("#sheet").classList.remove("on");
+$("#sheet").addEventListener("click", e => { if (e.target.id === "sheet") $("#sheet").classList.remove("on"); });
+$("#mOk").onclick = async () => {
+  const m = curManual();
+  if (!(m.monto > 0)) { $("#mMonto").focus(); return; }
+  m.cat = catFor(m);
+  $("#mOk").disabled = true;
+  const ok = await saveMov(m);
+  $("#mOk").disabled = false;
+  if (ok) $("#sheet").classList.remove("on");
+};
+
+/* =========================================================
+   Arranque: base compartida, usuario e IA
+   ========================================================= */
+renderWho(); renderHist();
+addMsg("bot", "¡Hola! Soy Cuentín 🐷. Dime cosas como \"pagué el mercado, 84\" o \"le pagué 120 a la Tía\", o mándame la foto del recibo 📷. Yo te enseño la cuenta antes de anotar.");
+
+// ¿Quién es? (viene en el link: #k=…&u=yoan o &u=arelis)
+if (!S.yoFixed) {
+  const pick = document.createElement("div"); pick.id = "sheet"; pick.className = "on"; pick.style.alignItems = "center";
+  const box = document.createElement("div"); box.className = "in"; box.style.borderRadius = "26px"; box.style.margin = "16px";
+  const h3 = document.createElement("h3"); h3.textContent = "¿Quién eres? 👋";
+  box.appendChild(h3);
+  for (const [v, t] of [["arelis", "👩 Soy Arelis (la Tía)"], ["yoan", "🧔 Soy Yoan"]]) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "big"; b.style.marginTop = "12px"; b.textContent = t;
+    b.onclick = () => { S.yo = v; try { localStorage.setItem("cc_yo", v); } catch (e) {} pick.remove(); renderWho(); renderBal(false); };
+    box.appendChild(b);
+  }
+  pick.appendChild(box); document.body.appendChild(pick);
+}
+$("#cam").classList.remove("off");
+
+async function load(first) {
+  if (!KEY) { $("#sync").textContent = "🔑 falta la clave"; S.loaded = true; renderBal(false); renderHist(); addMsg("bot", "A este link le falta la clave 🔑. Pídele el link completo a Yoan."); return; }
+  try {
+    const r = await api("list");
+    const prev = new Set(S.movs.map(m => m.id));
+    S.movs = (r.movs || []).map(x => ({ id: x.id, fecha: String(x.fecha || ""), desc: String(x.desc || ""), monto: Number(x.monto) || 0, tipo: String(x.tipo || ""),
+      pago: x.pago === "arelis" ? "arelis" : x.pago === "yoan" ? "yoan" : "", delta: Number(x.delta) || 0, cat: Array.from(String(x.cat || "")).slice(0, 2).join(""),
+      por: x.por === "arelis" ? "arelis" : x.por === "yoan" ? "yoan" : "", ts: Number(x.ts) || 0 }));
+    $("#sync").textContent = "🟢 al día";
+    const wasLoaded = S.loaded; S.loaded = true;
+    if (!wasLoaded || first) { renderBal(false); renderHist(); return; }
+    const news = S.movs.filter(m => !prev.has(m.id));
+    const gone = prev.size + news.length !== S.movs.length;
+    if (news.length || gone) {
+      for (const n of news) if (n.por && n.por !== S.yo) toast(`${n.por === "yoan" ? "Yoan" : "Arelis"} anotó: ${n.desc} ${money(n.monto)}`);
+      afterChange(news.length && news.length <= 3 ? news.map(d => ({ d })) : null);
+    }
+  } catch (e) {
+    $("#sync").textContent = e.status === 401 ? "🔑 link no válido" : "⚠️ sin internet";
+    if (!S.loaded) { S.loaded = true; renderBal(false); renderHist(); }
+  }
+}
+load(true);
+setInterval(() => { if (document.visibilityState === "visible" && !S.busy) load(); }, 8000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(); });
+</script>
+</body>
+</html>
