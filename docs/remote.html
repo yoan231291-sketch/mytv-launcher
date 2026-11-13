@@ -70,7 +70,7 @@
   .alexa .ring { width:18px; height:18px; border-radius:50%; border:3px solid #00caff; box-sizing:border-box; }
   .alexa.listening .ring { animation:alx 1s ease-in-out infinite; }
   @keyframes alx { 50% { box-shadow:0 0 0 6px rgba(0,202,255,.25); } }
-  .drawlink[hidden], .type[hidden] { display:none !important; }
+  .drawlink[hidden], .type[hidden], #wifiLocked[hidden] { display:none !important; }
   .drawlink { display:block; margin-top:12px; text-align:center; text-decoration:none; background:var(--fg); color:var(--bg); }
   .type { display:flex; gap:8px; margin-top:12px; }
   .type input { flex:1; min-width:0; border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:14px; font-size:16px; }
@@ -137,7 +137,8 @@
 <details class="howto" id="wifiCfg" style="margin-top:8px"><summary>Wi-Fi del QR</summary>
   <p class="note" style="margin:8px 0">Se guarda solo en este teléfono y en tu TV (no en internet ni en GitHub). Lo escribes una vez.</p>
   <form id="wifiForm" class="type" style="flex-direction:column"><input id="wifiS" type="text" placeholder="Nombre de la red (Wi-Fi)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
-  <input id="wifiP" type="text" placeholder="Contraseña" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="pill" type="submit">Guardar y mostrar en la TV</button></form>
+  <input id="wifiP" type="password" placeholder="Contraseña" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="pill" type="submit" id="wifiSave">Guardar y mostrar en la TV</button></form>
+  <div id="wifiLocked" hidden><p class="note" style="margin:8px 0">✓ Guardado: <b id="wifiName"></b></p><button class="pill" type="button" id="wifiChange" style="width:100%">Cambiar nombre o contraseña</button></div>
 </details>
 
 <button class="pill alexa" id="alexa" aria-label="Hablarle a la TV"><span class="ring"></span><span id="alexaTxt">Alexa · toca y habla</span></button>
@@ -286,19 +287,26 @@ document.querySelectorAll('[data-k]').forEach(b => {
   let w = null; try { w = JSON.parse(localStorage.getItem('mytv-wifi') || 'null'); } catch (e) { }
   const hex = o => Array.from(new TextEncoder().encode(JSON.stringify(o))).map(x => x.toString(16).padStart(2, '0')).join('');
   const sent = () => { try { return localStorage.getItem('mytv-wifi-sent') === JSON.stringify(w); } catch (e) { return false; } };
-  if (w) { $('wifiS').value = w.s || ''; $('wifiP').value = w.p || ''; }
+  const lock = on => {   // bloqueado: no se puede escribir por accidente; "Cambiar" lo desbloquea
+    $('wifiForm').hidden = on; $('wifiLocked').hidden = !on;
+    if (on && w) $('wifiName').textContent = w.s;
+    if (on) { document.activeElement && document.activeElement.blur(); $('wifiCfg').open = false; }
+  };
+  if (w && w.s) { $('wifiS').value = w.s; $('wifiP').value = w.p || ''; lock(true); }
+  const flash = () => { const b = $('wifiBtn'), t = b.textContent; b.textContent = '✓ QR enviado a la TV'; setTimeout(() => { b.textContent = t; }, 3000); };
   const show = async withData => {
     if (!w || !w.s) { $('wifiCfg').open = true; toast('Escribe el nombre y la contraseña de tu Wi-Fi'); return; }
     await send('city', withData ? 'wifiqr-' + hex(w) : 'wifiqr');
     try { localStorage.setItem('mytv-wifi-sent', JSON.stringify(w)); } catch (e) { }
-    toast('QR en la TV (se cierra solo en 90 s)');
+    toast('QR en la TV (se cierra solo en 90 s)'); flash();
   };
   $('wifiBtn').addEventListener('click', () => show(!sent()));
+  $('wifiChange').addEventListener('click', () => { $('wifiForm').hidden = false; $('wifiLocked').hidden = true; $('wifiS').focus(); });
   $('wifiForm').addEventListener('submit', e => {
     e.preventDefault(); const s = $('wifiS').value.trim(), p = $('wifiP').value;
     if (!s) return toast('Falta el nombre de la red');
     w = { s, p }; try { localStorage.setItem('mytv-wifi', JSON.stringify(w)); } catch (e) { }
-    show(true);
+    lock(true); show(true);
   });
 })();
 
