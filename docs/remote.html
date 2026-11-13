@@ -133,6 +133,12 @@
   <button class="pill" data-k="mute">Silenciar</button>
 </div>
 <div class="wide" style="grid-template-columns:1fr"><button class="pill" data-k="mosaic">Recorrido: otra ciudad cada 3 min (prender/apagar)</button></div>
+<div class="wide" style="grid-template-columns:1fr"><button class="pill" id="wifiBtn">Mostrar QR para conectarse al Wi-Fi</button></div>
+<details class="howto" id="wifiCfg" style="margin-top:8px"><summary>Wi-Fi del QR</summary>
+  <p class="note" style="margin:8px 0">Se guarda solo en este teléfono y en tu TV (no en internet ni en GitHub). Lo escribes una vez.</p>
+  <form id="wifiForm" class="type" style="flex-direction:column"><input id="wifiS" type="text" placeholder="Nombre de la red (Wi-Fi)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <input id="wifiP" type="text" placeholder="Contraseña" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="pill" type="submit">Guardar y mostrar en la TV</button></form>
+</details>
 
 <button class="pill alexa" id="alexa" aria-label="Hablarle a la TV"><span class="ring"></span><span id="alexaTxt">Alexa · toca y habla</span></button>
 <form id="voiceForm" class="type" hidden><input id="voiceIn" type="text" placeholder="Toca 🎤 del teclado y di la orden" autocomplete="off" enterkeyhint="send"><button class="pill" type="submit">Enviar</button></form>
@@ -274,6 +280,27 @@ document.querySelectorAll('[data-k]').forEach(b => {
   ['pointercancel','pointerleave'].forEach(t => b.addEventListener(t, () => { ok = false; stop(); }));
   b.addEventListener('touchend', e => e.preventDefault(), { passive:false });   // evita el "clic" fantasma y el zoom
 });
+
+// QR del Wi-Fi: el nombre y la contraseña viven solo en este teléfono (localStorage) y en la TV; la TV dibuja el QR cuando lo pides
+(function () {
+  let w = null; try { w = JSON.parse(localStorage.getItem('mytv-wifi') || 'null'); } catch (e) { }
+  const hex = o => Array.from(new TextEncoder().encode(JSON.stringify(o))).map(x => x.toString(16).padStart(2, '0')).join('');
+  const sent = () => { try { return localStorage.getItem('mytv-wifi-sent') === JSON.stringify(w); } catch (e) { return false; } };
+  if (w) { $('wifiS').value = w.s || ''; $('wifiP').value = w.p || ''; }
+  const show = async withData => {
+    if (!w || !w.s) { $('wifiCfg').open = true; toast('Escribe el nombre y la contraseña de tu Wi-Fi'); return; }
+    await send('city', withData ? 'wifiqr-' + hex(w) : 'wifiqr');
+    try { localStorage.setItem('mytv-wifi-sent', JSON.stringify(w)); } catch (e) { }
+    toast('QR en la TV (se cierra solo en 90 s)');
+  };
+  $('wifiBtn').addEventListener('click', () => show(!sent()));
+  $('wifiForm').addEventListener('submit', e => {
+    e.preventDefault(); const s = $('wifiS').value.trim(), p = $('wifiP').value;
+    if (!s) return toast('Falta el nombre de la red');
+    w = { s, p }; try { localStorage.setItem('mytv-wifi', JSON.stringify(w)); } catch (e) { }
+    show(true);
+  });
+})();
 
 // Panel táctil: deslizar = flechas (se repite si deslizas largo), tocar = OK
 const pad = $('pad'), dot = $('dot'); let sx, sy, lx, ly, moved, t0;
