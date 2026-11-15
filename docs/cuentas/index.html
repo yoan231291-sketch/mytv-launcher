@@ -109,6 +109,51 @@ button{cursor:pointer;border:0;background:none}
 .confirm .si{background:var(--red);color:#fff}
 .empty{text-align:center;color:var(--mute);padding:30px 10px;font-weight:700}
 
+/* ---------- Compras ---------- */
+#tabs button{font-size:15px;padding:10px 4px}
+.csearch{display:flex;gap:8px;position:sticky;top:0;background:var(--bg);padding:4px 0 8px;z-index:2}
+#cq{flex:1;min-width:0;height:48px;border-radius:24px;border:2px solid var(--line);padding:0 16px;font-size:16px;background:#fff;outline:none}
+#cq:focus{border-color:var(--coral)}
+#cAdd{flex:none;padding:0 14px;border-radius:24px;background:var(--gold);font-weight:800;font-size:15px}
+.csum{background:var(--ink);color:#fff;border-radius:18px;padding:14px 16px;margin:4px 0 10px}
+.csum .t{font-weight:800;font-size:17px}.csum .s{opacity:.85;font-size:15px;margin-top:2px}
+.csum .warn{margin-top:8px;background:var(--gold);color:var(--ink);border-radius:10px;padding:6px 10px;font-weight:800;font-size:14px}
+.rcard{background:#fff;border-radius:18px;padding:12px 14px;margin:10px 0;box-shadow:0 2px 10px rgba(80,40,20,.07)}
+.rcard.pend{border:2px dashed var(--gold)}
+.rh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.rh .t{font-weight:800;font-size:18px}.rh .s{font-size:14px;color:var(--mute)}
+.rr{text-align:right}.rr .s{text-transform:none;color:var(--green);font-weight:800}
+.chip{display:inline-block;margin-top:8px;padding:4px 10px;border-radius:999px;font-weight:800;font-size:13px}
+.chip.cuenta{background:#e3f6ec;color:#167a4b}.chip.nota{background:#ece9ff;color:#4b3fa6}.chip.pendiente{background:#fff3cf;color:#8a6200}
+.rnote{font-size:14px;color:var(--mute);margin-top:6px;line-height:1.3}
+.racts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.racts button{flex:1;min-width:30%;padding:10px 8px;border-radius:12px;background:#f6ece3;font-weight:800;font-size:15px}
+.racts .b3d{background:var(--ink);color:#fff}.racts .pay{background:var(--green);color:#fff}
+.rcard .q{margin-top:10px;font-weight:800;font-size:15px}
+.rcard .undo{margin-top:8px;font-size:13px;font-weight:800;color:var(--mute);padding:4px 0}
+.ilist{margin-top:10px;border-top:2px dashed var(--line);padding-top:6px}
+.irow,.prow{display:flex;width:100%;text-align:left;gap:10px;align-items:center;padding:9px 6px;border-radius:12px}
+.prow{background:#fff;margin:6px 0;padding:10px 12px;box-shadow:0 2px 8px rgba(80,40,20,.06)}
+.irow:active,.prow:active{background:#fff3cf}
+.pn{flex:1;min-width:0}.pn .t{font-weight:800;line-height:1.2}.pn .s{font-size:12px;color:var(--mute);margin-top:2px}
+.pp{text-align:right;flex:none}.pp .t{font-weight:800}.pp .s{font-size:12px;color:var(--green);font-weight:800}
+.ifoot{text-align:right;font-size:14px;color:var(--mute);padding:8px 6px 2px;line-height:1.5}.ifoot .b{color:var(--ink);font-weight:800;font-size:16px}
+.row .rcpt{font-size:13px;color:#1f5fbf;font-weight:800;padding:4px 0 0;display:block;margin-left:auto}
+/* ---------- Visor 3D ---------- */
+#rv{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;background:radial-gradient(120% 80% at 50% 0%,#fff1d6,#ffcfb8 60%,#f4a98c);padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#rv.on{display:flex;animation:up .3s ease-out}
+.rvtop{display:flex;align-items:center;gap:10px;padding:12px 14px 6px}
+.rvt{flex:1;min-width:0}#rvTitle{font-family:"Baloo 2";font-weight:800;font-size:22px;line-height:1.1;text-transform:capitalize}
+#rvSub{font-weight:800;font-size:15px;color:#6b4a3a;margin-top:2px}
+#rvX{width:46px;height:46px;border-radius:50%;background:#fff;font-size:18px;box-shadow:var(--sh);flex:none}
+#rvc{flex:1;width:100%;min-height:0;display:block;touch-action:none}
+#rvPh{flex:1;overflow:auto;padding:6px 14px;-webkit-overflow-scrolling:touch}
+#rvPh img{display:block;width:100%;border-radius:12px;margin:6px 0 12px;box-shadow:var(--sh)}
+#rvPh img.big{width:220%;max-width:none}
+.rvbot{padding:8px 14px 12px;display:flex;flex-direction:column;gap:8px;align-items:center}
+#rvHint{font-size:13px;font-weight:800;color:#6b4a3a}
+#rvFotoBtn{width:100%;padding:14px;border-radius:16px;background:var(--ink);color:#fff;font-weight:800;font-size:17px}
+
 /* ---------- Hoja manual ---------- */
 #sheet,.sheet2{position:fixed;inset:0;background:rgba(42,34,51,.45);display:none;align-items:flex-end;z-index:20}
 #sheet.on,.sheet2.on{display:flex}
@@ -147,10 +192,15 @@ button{cursor:pointer;border:0;background:none}
 
   <div id="tabs">
     <button type="button" data-t="chat" class="on">💬 Cuentín</button>
+    <button type="button" data-t="compras">🛒 Compras</button>
     <button type="button" data-t="hist">📒 Historial</button>
   </div>
 
   <div id="chat" class="pane on"><div id="msgs"></div></div>
+  <div id="compras" class="pane">
+    <div class="csearch"><input id="cq" type="search" placeholder="🔎 Buscar un producto (ej: queso, Coca-Cola)" autocomplete="off"><button type="button" id="cAdd">📷 Recibo</button></div>
+    <div id="cList"></div>
+  </div>
   <div id="hist" class="pane"><div id="histList"></div></div>
 
   <div id="chips"></div>
@@ -201,6 +251,18 @@ button{cursor:pointer;border:0;background:none}
     <div class="s" style="color:var(--mute);font-size:14px;margin-top:6px">Se guarda y también sale en el teléfono del otro. Cuando toquen al muñequito, la puede decir otra vez.</div>
     <div class="flist" id="fList"></div>
     <button type="button" class="ghost" id="fNo">Cerrar</button>
+  </div>
+</div>
+<div id="rv">
+  <div class="rvtop">
+    <div class="rvt"><div id="rvTitle"></div><div id="rvSub"></div></div>
+    <button type="button" id="rvX" aria-label="Cerrar">✖️</button>
+  </div>
+  <canvas id="rvc"></canvas>
+  <div id="rvPh"></div>
+  <div class="rvbot">
+    <div id="rvHint">☝️ Desliza arriba y abajo · dos dedos para acercar</div>
+    <button type="button" id="rvFotoBtn">📷 Ver foto original</button>
   </div>
 </div>
 <div id="toast"></div>
@@ -739,7 +801,9 @@ function renderHist() {
     cap.className = dv > 0 ? "up" : "down"; cap.textContent = dv > 0 ? "Yoan debe más" : "Yoan debe menos";
     const x = document.createElement("button"); x.type = "button"; x.className = "x"; x.textContent = "🗑️ borrar";
     x.onclick = () => askDelete(r, m);
-    right.append(d, cap, x);
+    const rc = recByMov(m.id);
+    if (rc) { const rb = document.createElement("button"); rb.type = "button"; rb.className = "rcpt"; rb.textContent = "🧾 ver recibo"; rb.onclick = () => openReceipt(rc, -1); right.append(d, cap, rb, x); }
+    else right.append(d, cap, x);
     r.append(ic, bd, right); box.appendChild(r);
   }
 }
@@ -769,7 +833,7 @@ async function saveMov(m) {
     const row = await api("add", { mov: doc });
     S.movs.push(row); afterChange([{ d: row }]);
     toast("✅ ¡Anotado!", () => removeMov(row, true));
-    return true;
+    return row;
   } catch (e) { writeErr(e); return false; }
 }
 async function removeMov(m, undo) {
@@ -818,10 +882,18 @@ function propCard(m) {
   no.onclick = () => { card.classList.add("no"); btns.remove(); };
   ok.onclick = async () => {
     ok.disabled = true; ok.textContent = "Guardando…";
-    if (await saveMov(m)) { card.classList.add("done"); btns.remove(); const d = document.createElement("div"); d.textContent = "✅ Anotado"; d.style.fontWeight = 800; d.style.color = "var(--green)"; card.appendChild(d); }
+    const row = await saveMov(m);
+    if (row) { card.classList.add("done"); btns.remove(); const d = document.createElement("div"); d.textContent = m._recibo ? "✅ Anotado y recibo guardado en 🛒 Compras" : "✅ Anotado"; d.style.fontWeight = 800; d.style.color = "var(--green)"; card.appendChild(d); await saveReciboFromCard(m, row, "cuenta"); }
     else { ok.disabled = false; ok.textContent = "✅ Anotar"; }
   };
-  btns.append(ok, flip, half, no); card.append(ln, ef, btns); draw();
+  btns.append(ok, flip, half, no);
+  if (m._recibo) {
+    const only = document.createElement("button"); only.type = "button"; only.textContent = "🧾 Solo guardar el recibo";
+    only.onclick = async () => { only.disabled = true; await saveReciboFromCard(m, null, "pendiente"); card.classList.add("done"); btns.remove(); const d = document.createElement("div"); d.textContent = "🧾 Recibo guardado en 🛒 Compras (sin sumar)"; d.style.fontWeight = 800; card.appendChild(d); };
+    btns.appendChild(only);
+    ln.after && setTimeout(() => { const info = document.createElement("div"); info.style.cssText = "font-size:14px;color:var(--mute);margin:-4px 0 8px;font-weight:700"; info.textContent = `🧾 Recibo con ${m._recibo.items.length} productos${m._recibo.items.length ? "" : " (no pude leer los productos, solo el total)"}`; ef.after(info); });
+  }
+  card.append(ln, ef, btns); draw();
   $("#msgs").appendChild(card); scrollChat();
 }
 
@@ -854,6 +926,8 @@ Costumbres de esta casa:
 - "Pagué el mercado, 84" → "medias", pago = quien habla. Recibo de supermercado sin más contexto → "medias", pago = quien habla, monto = TOTAL del recibo.
 - Si preguntan cuánto se debe o por el historial, responde con los datos de arriba y movimientos vacío.
 - Si no está claro quién pagó, elige lo más probable y dilo en la respuesta (la persona puede voltearlo en la tarjeta).
+
+Si te mandan la FOTO DE UN RECIBO, además del movimiento añade "recibo" con TODOS los productos: {"tienda":"Walmart","fecha":"YYYY-MM-DD","subtotal":0,"tax":0,"total":0,"items":[{"c":"código tal cual sale en el recibo","n":"nombre claro en español","p":precio}]}. Las líneas "VOIDED ENTRY" sin precio no cuentan. El movimiento del recibo es "medias" por el TOTAL.
 
 Responde SOLO con JSON así:
 {"respuesta":"texto corto (1-2 frases) para la persona","movimientos":[{"desc":"Mercado","monto":84,"tipo":"medias","pago":"arelis","fecha":"${today()}","cat":"🛒"}]}`;
@@ -915,7 +989,7 @@ async function ocrReceipt(file) {
   for (const l of lines) if (/total/i.test(l) && !/sub\s*-?\s*total/i.test(l) && amt(l)) total = amt(l);
   if (total === null) { const all = lines.map(amt).filter(Boolean); if (all.length) total = Math.max(...all); }
   const store = (lines.find(l => /[a-z]{3,}/i.test(l)) || "Recibo").replace(/[^\p{L}\p{N} &'-]/gu, "").trim().slice(0, 30);
-  return { total, store };
+  return { total, store, text: data.text };
 }
 
 /* Achica la foto antes de mandarla */
@@ -937,16 +1011,25 @@ async function send(text, file) {
   if (!file && /^(¿)?\s*cu[aá]nto\s+(le\s+)?(debo|me debe|debe|nos debemos)/i.test(text)) { addMsg("bot", localAnswer()); return; }
   S.busy = true; $("#send").disabled = true;
   const th = addMsg("bot", file ? "Leyendo el recibo" : "Pensando"); th.classList.add("think");
+  let fileB64 = null;
   const userTurn = (file ? "[La persona mandó una FOTO DE UN RECIBO. Léela: comercio, fecha y TOTAL a pagar.] " : "") + (text || "Anota este recibo.");
   try {
     if (S.ai !== false) {
       const payload = { system: rules(), turns: [...S.turns.slice(-8), { role: "user", content: userTurn }] };
-      if (file) payload.image = await shrink(file);
+      if (file) payload.image = fileB64 || (fileB64 = await shrink(file));
       const r = await api("ask", payload);
       if (r && r.noai) S.ai = false;
       else {
         th.remove();
         const resp = String(r && r.respuesta || "Listo 👍").slice(0, 600), movs = cleanMovs(r && r.movimientos);
+        if (file && movs.length) {
+          const rr = r && r.recibo;
+          movs[0]._recibo = {
+            tienda: String(rr && rr.tienda || movs[0].desc || "Tienda").slice(0, 60), fecha: (rr && /^\d{4}-\d{2}-\d{2}$/.test(rr.fecha || "")) ? rr.fecha : movs[0].fecha,
+            subtotal: rr && rr.subtotal != null ? Number(rr.subtotal) : null, tax: rr && rr.tax != null ? Number(rr.tax) : null, total: Number(rr && rr.total) || movs[0].monto,
+            items: (rr && Array.isArray(rr.items) ? rr.items : []).map(i => ({ c: String(i.c || ""), n: String(i.n || i.c || ""), p: Number(i.p) || 0 })), fotos: [fileB64]
+          };
+        }
         addMsg("bot", resp); movs.forEach(m => propCard(m));
         S.turns.push({ role: "user", content: userTurn }, { role: "assistant", content: resp + (movs.length ? " (Propuse: " + movs.map(lineOf).join("; ") + ")" : "") });
         return;
@@ -954,11 +1037,15 @@ async function send(text, file) {
     }
     // Sin IA: entender en el teléfono
     if (file) {
-      const { total, store } = await ocrReceipt(file); th.remove();
+      const { total, store, text: ocrText } = await ocrReceipt(file); th.remove();
+      const pr = parseReceiptText(ocrText || "");
+      if (!fileB64) { try { fileB64 = await shrink(file); } catch (e) {} }
       const hint = text ? localParse(text + " " + (total || "")) : null;
       if (!total) { addMsg("bot", "No pude leer el total 😅. Escríbeme cuánto fue, ej: \"pagué el mercado, 84\""); return; }
       addMsg("bot", `Leí el recibo de ${store}: total ${money(total)} 🧾. Revisa 👇`);
-      propCard(Object.assign({ desc: store || "Mercado", monto: total, tipo: "medias", pago: S.yo, fecha: today() }, hint || {}, { monto: total }));
+      const pm = Object.assign({ desc: store || "Mercado", monto: total, tipo: "medias", pago: S.yo, fecha: pr.fecha || today() }, hint || {}, { monto: total });
+      pm._recibo = { tienda: /walmart/i.test(ocrText || "") ? "Walmart" : (store || "Tienda"), fecha: pm.fecha, subtotal: pr.subtotal, tax: pr.tax, total, items: pr.items, fotos: fileB64 ? [fileB64] : [] };
+      propCard(pm);
       return;
     }
     const m = localParse(text); th.remove();
@@ -1046,10 +1133,316 @@ $("#fOk").onclick = async () => {
   finally { $("#fOk").disabled = false; }
 };
 
+/* =========================================================
+   Compras: recibos, productos y visor 3D del recibo
+   ========================================================= */
+S.recibos = []; S.openRec = null;
+const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const WHO_NAME = { yoan: "Yoan", arelis: "la Tía" };
+
+function syncRecibos(list) {
+  S.recibos = (Array.isArray(list) ? list : []).map(r => ({
+    id: r.id, fecha: String(r.fecha || ""), tienda: String(r.tienda || "Tienda"), subtotal: r.subtotal == null ? null : Number(r.subtotal),
+    tax: r.tax == null ? null : Number(r.tax), total: Number(r.total) || 0,
+    items: (Array.isArray(r.items) ? r.items : []).map(i => ({ c: String(i.c || ""), n: String(i.n || i.c || ""), p: Number(i.p) || 0 })),
+    estado: ["pendiente", "cuenta", "nota"].includes(r.estado) ? r.estado : "pendiente",
+    pago: r.pago === "yoan" || r.pago === "arelis" ? r.pago : null, mov_id: r.mov_id || null, nota: String(r.nota || ""), fotos: Number(r.fotos) || 0
+  }));
+  renderCompras();
+}
+const recByMov = id => S.recibos.find(r => r.mov_id && r.mov_id === id);
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+function renderCompras() {
+  const box = $("#cList"); if (!box) return; box.textContent = "";
+  const q = norm($("#cq").value.trim());
+  const recs = S.recibos.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+  if (!recs.length) { box.appendChild(el("div", "empty", S.loaded ? "Todavía no hay recibos. Mándale una foto a Cuentín 📷" : "Cargando…")); return; }
+
+  if (q) { // ----- búsqueda de productos
+    const hits = [];
+    for (const r of recs) r.items.forEach((it, i) => { if (norm(it.n).includes(q) || norm(it.c).includes(q)) hits.push({ r, it, i }); });
+    box.appendChild(el("div", "day", hits.length ? `${hits.length} ${hits.length === 1 ? "vez" : "veces"} comprado` : "No encontré ese producto 🤔"));
+    for (const { r, it, i } of hits) {
+      const row = el("button", "prow"); row.type = "button";
+      const a = el("div", "pn"); a.append(el("div", "t", it.n), el("div", "s", `${niceDate(r.fecha)} · ${r.tienda} · ${it.c}`));
+      const b = el("div", "pp"); b.append(el("div", "t", money(it.p)), el("div", "s", "mitad " + money(it.p / 2)));
+      row.append(a, b); row.onclick = () => openReceipt(r, i); box.appendChild(row);
+    }
+    return;
+  }
+
+  // ----- resumen
+  const tot = recs.reduce((s, r) => s + r.total, 0), pend = recs.filter(r => r.estado === "pendiente").length;
+  const sum = el("div", "csum");
+  sum.append(el("div", "t", `${recs.length} recibos · ${recs.reduce((s, r) => s + r.items.length, 0)} productos`),
+    el("div", "s", `Gastado: ${money(tot)} · A cada uno: ${money(tot / 2)}`));
+  if (pend) sum.append(el("div", "warn", `⏳ ${pend} ${pend === 1 ? "recibo falta" : "recibos faltan"} por sumar a la cuenta`));
+  box.appendChild(sum);
+
+  for (const r of recs) {
+    const card = el("div", "rcard" + (r.estado === "pendiente" ? " pend" : ""));
+    const head = el("div", "rh");
+    const l = el("div"); l.append(el("div", "t", `🧾 ${r.tienda}`), el("div", "s", `${niceDate(r.fecha)} · ${r.items.length} productos`));
+    const rt = el("div", "rr"); rt.append(el("div", "t", money(r.total)), el("div", "s", "mitad " + money(r.total / 2)));
+    head.append(l, rt); card.appendChild(head);
+    const chip = el("div", "chip " + r.estado, r.estado === "cuenta" ? `✅ En la cuenta${r.pago ? " · lo pagó " + WHO_NAME[r.pago] : ""}` : r.estado === "nota" ? "📝 Ya estaba en la cuenta" : "⏳ Falta sumarlo a la cuenta");
+    card.appendChild(chip);
+    if (r.nota) card.appendChild(el("div", "rnote", r.nota));
+
+    const acts = el("div", "racts");
+    const v3 = el("button", "b3d", "🧾 Ver recibo 3D"); v3.type = "button"; v3.onclick = () => openReceipt(r, -1);
+    const tg = el("button", "", S.openRec === r.id ? "▲ Ocultar productos" : `▼ Ver productos (${r.items.length})`); tg.type = "button";
+    tg.onclick = () => { S.openRec = S.openRec === r.id ? null : r.id; renderCompras(); };
+    acts.append(v3, tg); card.appendChild(acts);
+
+    if (r.estado === "pendiente") {
+      card.appendChild(el("div", "q", "¿Quién pagó este recibo? (se divide a la mitad)"));
+      const pb = el("div", "racts");
+      for (const [p, t] of [["yoan", "🧔 Yoan"], ["arelis", "👩 La Tía"]]) { const b = el("button", "pay", t); b.type = "button"; b.onclick = () => payRecibo(r, p, b); pb.appendChild(b); }
+      const ya = el("button", "", "📝 Ya estaba"); ya.type = "button"; ya.onclick = () => setRecibo(r, { estado: "nota" }); pb.appendChild(ya);
+      card.appendChild(pb);
+    } else {
+      const un = el("button", "undo", r.estado === "cuenta" ? "↩️ Quitar de la cuenta" : "↩️ Marcar como pendiente"); un.type = "button";
+      un.onclick = () => unRecibo(r, un); card.appendChild(un);
+    }
+
+    if (S.openRec === r.id) {
+      const list = el("div", "ilist");
+      r.items.forEach((it, i) => {
+        const row = el("button", "irow"); row.type = "button";
+        const a = el("div", "pn"); a.append(el("div", "t", it.n), el("div", "s", it.c));
+        const b = el("div", "pp"); b.append(el("div", "t", money(it.p)), el("div", "s", "mitad " + money(it.p / 2)));
+        row.append(a, b); row.onclick = () => openReceipt(r, i); list.appendChild(row);
+      });
+      const ft = el("div", "ifoot");
+      if (r.subtotal != null) ft.appendChild(el("div", "", `Subtotal ${money(r.subtotal)}`));
+      if (r.tax != null) ft.appendChild(el("div", "", `Impuesto ${money(r.tax)}`));
+      ft.appendChild(el("div", "b", `Total ${money(r.total)} · a cada uno ${money(r.total / 2)}`));
+      list.appendChild(ft); card.appendChild(list);
+    }
+    box.appendChild(card);
+  }
+}
+
+async function setRecibo(r, upd) {
+  try { const x = await api("recibo_set", Object.assign({ id: r.id }, upd)); Object.assign(r, { estado: x.estado, pago: x.pago, mov_id: x.mov_id }); renderCompras(); renderHist(); }
+  catch (e) { writeErr(e); }
+}
+async function payRecibo(r, pago, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const row = await api("add", { mov: { fecha: r.fecha, desc: `${r.tienda} (recibo del ${niceDate(r.fecha)})`, monto: r.total, tipo: "medias", pago, cat: "🛒", por: S.yo } });
+    S.movs.push(row); afterChange([{ d: row }]);
+    await setRecibo(r, { estado: "cuenta", pago, mov_id: row.id });
+    toast(`✅ Sumado: ${money(r.total / 2)} a cada uno`);
+  } catch (e) { writeErr(e); if (btn) btn.disabled = false; }
+}
+async function unRecibo(r, btn) {
+  if (btn.dataset.c !== "1") { btn.dataset.c = "1"; btn.textContent = r.estado === "cuenta" ? "¿Seguro? Toca otra vez para quitarlo" : "¿Seguro? Toca otra vez"; return; }
+  btn.disabled = true;
+  try {
+    if (r.estado === "cuenta" && r.mov_id) { await api("del", { id: r.mov_id }); S.movs = S.movs.filter(x => x.id !== r.mov_id); afterChange(); }
+    await setRecibo(r, { estado: "pendiente", pago: null, mov_id: null });
+  } catch (e) { writeErr(e); btn.disabled = false; }
+}
+
+/* ---------- Visor 3D del recibo ---------- */
+const RV = { r: null, hi: -1, three: null, fotos: {}, mode: "3d" };
+
+function receiptCanvas(r, hi) {
+  const W = 640, PAD = 38, LH = 32;
+  const lines = r.items.length + (hi >= 0 ? 1 : 0);
+  let H = 330 + lines * LH + 300;
+  const scale = Math.min(2, 4096 / H);
+  const c = document.createElement("canvas"); c.width = Math.round(W * scale); c.height = Math.round(H * scale);
+  const g = c.getContext("2d"); g.scale(scale, scale);
+  // papel con borde de sierra arriba y abajo
+  const Z = 12; g.beginPath(); g.moveTo(0, Z);
+  for (let x = 0; x <= W; x += Z * 2) { g.lineTo(x + Z, 0); g.lineTo(x + Z * 2, Z); }
+  g.lineTo(W, H - Z); for (let x = W; x >= 0; x -= Z * 2) { g.lineTo(x - Z, H); g.lineTo(x - Z * 2, H - Z); }
+  g.closePath(); g.fillStyle = "#fffdf7"; g.fill();
+  // textura sutil
+  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(120,100,80,${Math.random() * 0.035})`; g.fillRect(Math.random() * W, Z + Math.random() * (H - 2 * Z), 2, 2); }
+  const mono = (sz, w = "600") => `${w} ${sz}px "Courier New", ui-monospace, monospace`;
+  const txt = (t, x, y, sz, al = "left", col = "#2a2233", w) => { g.font = mono(sz, w); g.fillStyle = col; g.textAlign = al; g.fillText(t, x, y); };
+  const fit = (t, max, sz) => { g.font = mono(sz); if (g.measureText(t).width <= max) return t; while (t.length > 1 && g.measureText(t + "…").width > max) t = t.slice(0, -1); return t + "…"; };
+  const dash = y => { g.strokeStyle = "#c9bfb2"; g.setLineDash([8, 7]); g.lineWidth = 2; g.beginPath(); g.moveTo(PAD, y); g.lineTo(W - PAD, y); g.stroke(); g.setLineDash([]); };
+  let y = 78;
+  g.font = `800 52px "Baloo 2", system-ui, sans-serif`; g.fillStyle = "#1f5fbf"; g.textAlign = "center"; g.fillText(r.tienda, W / 2, y);
+  y += 34; txt("COPIA DIGITAL · CUENTAS CLARAS", W / 2, y, 17, "center", "#7a6f80", "700");
+  y += 30; txt(niceDate(r.fecha) + " · " + r.fecha.split("-").reverse().join("/"), W / 2, y, 20, "center");
+  y += 22; dash(y); y += 36;
+  txt("PRODUCTO", PAD, y, 17, "left", "#7a6f80", "800"); txt("PRECIO", W - PAD - 110, y, 17, "right", "#7a6f80", "800"); txt("MITAD", W - PAD, y, 17, "right", "#7a6f80", "800");
+  y += 14;
+  let hiY = null;
+  r.items.forEach((it, i) => {
+    y += LH;
+    if (i === hi) {
+      g.fillStyle = "rgba(255,214,64,.85)"; g.beginPath(); g.roundRect ? g.roundRect(PAD - 12, y - 25, W - 2 * PAD + 24, LH * 2 + 4, 10) : g.rect(PAD - 12, y - 25, W - 2 * PAD + 24, LH * 2 + 4); g.fill();
+      hiY = y + LH / 2;
+    }
+    txt(fit(it.n, W - 2 * PAD - 235, 20), PAD, y, 20, "left", "#2a2233", i === hi ? "800" : "600");
+    txt(money(it.p), W - PAD - 110, y, 20, "right", "#2a2233", i === hi ? "800" : "600");
+    txt(money(it.p / 2), W - PAD, y, 20, "right", "#21a366", "800");
+    if (i === hi) { y += LH; txt("código del recibo: " + it.c, PAD, y, 16, "left", "#6b5a2a", "700"); }
+  });
+  y += 24; dash(y); y += 36;
+  const tl = (a, b, bold, col) => { txt(a, PAD, y, bold ? 24 : 20, "left", col || "#2a2233", bold ? "800" : "600"); txt(b, W - PAD, y, bold ? 24 : 20, "right", col || "#2a2233", bold ? "800" : "600"); y += bold ? 38 : 32; };
+  if (r.subtotal != null) tl("SUBTOTAL", money(r.subtotal));
+  if (r.tax != null) tl("IMPUESTO", money(r.tax));
+  tl("TOTAL", money(r.total), true);
+  tl("A CADA UNO (MITAD)", money(r.total / 2), true, "#21a366");
+  y += 6; dash(y); y += 34;
+  const est = r.estado === "cuenta" ? `En la cuenta${r.pago ? " · lo pagó " + WHO_NAME[r.pago] : ""}` : r.estado === "nota" ? "Ya estaba en la cuenta" : "Falta sumarlo a la cuenta";
+  txt(est, W / 2, y, 19, "center", "#7a6f80", "700"); y += 30;
+  txt("¡Gracias, familia! 🐷", W / 2, y, 20, "center", "#ff7a59", "800");
+  return { canvas: c, hiFrac: hiY == null ? null : hiY / H, aspect: H / W };
+}
+
+function rvInit() {
+  if (RV.three) return RV.three;
+  const canvas = $("#rvc");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(35, 1, 0.05, 50);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xd9b8a0, 0.95));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.55); dl.position.set(-1.5, 2, 3); scene.add(dl);
+  const group = new THREE.Group(); scene.add(group);
+  const T = { renderer, scene, cam, group, mesh: null, shadow: null, y: 0, vy: 0, ty: null, rotY: 0, zoom: 1, t0: 0, minY: 0, maxY: 0, h: 1, raf: 0 };
+  // gestos: arrastrar = desplazar / girar; dos dedos = acercar
+  const pts = new Map(); let last = null, pinch0 = null, zoom0 = 1;
+  canvas.addEventListener("pointerdown", e => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); last = { x: e.clientX, y: e.clientY, t: performance.now() }; T.ty = null; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = T.zoom; } });
+  canvas.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && pinch0) { const [a, b] = [...pts.values()]; T.zoom = Math.max(0.6, Math.min(3, zoom0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch0)); return; }
+    if (!last) return;
+    const dx = e.clientX - last.x, dy = e.clientY - last.y, now = performance.now();
+    const k = 1.15 / canvas.clientHeight / T.zoom;
+    T.y += dy * k * 1.6; T.vy = dy * k * 1.6 / Math.max(1, now - last.t) * 16;
+    T.rotY = Math.max(-0.6, Math.min(0.6, T.rotY + dx * 0.004));
+    last = { x: e.clientX, y: e.clientY, t: now };
+  });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null; if (!pts.size) last = null; };
+  canvas.addEventListener("pointerup", up); canvas.addEventListener("pointercancel", up);
+  canvas.addEventListener("wheel", e => { e.preventDefault(); T.y += e.deltaY * 0.0015; T.ty = null; }, { passive: false });
+  RV.three = T; return T;
+}
+
+function rvBuild(r, hi) {
+  const T = rvInit();
+  if (T.mesh) { T.group.remove(T.mesh); T.mesh.material.map.dispose(); T.mesh.material.dispose(); T.mesh.geometry.dispose(); }
+  if (T.shadow) { T.group.remove(T.shadow); T.shadow.geometry.dispose(); }
+  const { canvas, hiFrac, aspect } = receiptCanvas(r, hi);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.anisotropy = T.renderer.capabilities.getMaxAnisotropy(); tex.minFilter = THREE.LinearMipmapLinearFilter;
+  const w = 1, h = aspect;
+  const geo = new THREE.PlaneGeometry(w, h, 12, Math.min(220, Math.ceil(h * 40)));
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) { // papel un poco curvo y ondulado
+    const x = pos.getX(i), y = pos.getY(i);
+    pos.setZ(i, -x * x * 0.12 + Math.sin(y * 5.5) * 0.012 + Math.sin(y * 13 + x * 3) * 0.004);
+  }
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0, side: THREE.DoubleSide, transparent: true, alphaTest: 0.4 });
+  T.mesh = new THREE.Mesh(geo, mat); T.group.add(T.mesh);
+  T.shadow = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.04, h * 1.01), new THREE.MeshBasicMaterial({ color: 0x5a3020, transparent: true, opacity: 0.16 }));
+  T.shadow.position.set(0.035, -0.03, -0.09); T.group.add(T.shadow);
+  T.h = h; T.minY = -(h / 2 - 0.45); T.maxY = h / 2 - 0.45;
+  if (T.maxY < T.minY) T.minY = T.maxY = 0;
+  const yFor = f => Math.max(T.minY, Math.min(T.maxY, (f - 0.5) * h));
+  T.ty = hiFrac != null ? yFor(hiFrac) : T.maxY; // empieza arriba, o en el producto tocado
+  T.y = T.minY - 1.2; T.vy = 0; T.rotY = 0.9; T.zoom = 1; T.t0 = performance.now();
+}
+
+function rvLoop() {
+  const T = RV.three; if (!T || !$("#rv").classList.contains("on")) return;
+  const c = $("#rvc"), w = c.clientWidth, hgt = c.clientHeight;
+  if (c.width !== Math.round(w * T.renderer.getPixelRatio()) || c.height !== Math.round(hgt * T.renderer.getPixelRatio())) { T.renderer.setSize(w, hgt, false); T.cam.aspect = w / hgt; T.cam.updateProjectionMatrix(); }
+  const t = (performance.now() - T.t0) / 1000;
+  if (T.ty != null) T.y += (T.ty - T.y) * 0.08; else { T.y += T.vy; T.vy *= 0.92; }
+  if (T.y < T.minY) { T.y += (T.minY - T.y) * 0.25; T.vy = 0; } if (T.y > T.maxY) { T.y += (T.maxY - T.y) * 0.25; T.vy = 0; }
+  T.rotY *= 0.94;
+  T.group.position.y = T.y;
+  T.group.rotation.y = T.rotY + Math.sin(t * 0.8) * 0.07;
+  T.group.rotation.x = -0.1 + Math.sin(t * 0.6) * 0.03;
+  T.group.rotation.z = Math.sin(t * 0.5) * 0.015;
+  const fitDist = 0.78 / Math.tan(THREE.MathUtils.degToRad(T.cam.fov / 2)) / Math.min(1, T.cam.aspect * 1.25);
+  T.cam.position.set(0, 0, Math.max(0.5, fitDist / T.zoom)); T.cam.lookAt(0, 0, 0);
+  T.renderer.render(T.scene, T.cam);
+  T.raf = requestAnimationFrame(rvLoop);
+}
+
+function openReceipt(r, hi) {
+  RV.r = r; RV.hi = hi;
+  $("#rvTitle").textContent = `🧾 ${r.tienda} · ${niceDate(r.fecha)}`;
+  $("#rvSub").textContent = hi >= 0 ? `${r.items[hi].n} · ${money(r.items[hi].p)} (mitad ${money(r.items[hi].p / 2)})` : `Total ${money(r.total)} · a cada uno ${money(r.total / 2)}`;
+  $("#rvFotoBtn").style.display = r.fotos ? "" : "none";
+  rvMode("3d");
+  $("#rv").classList.add("on");
+  requestAnimationFrame(() => { rvBuild(r, hi); cancelAnimationFrame(RV.three.raf); rvLoop(); });
+  Sfx.boing();
+}
+function rvMode(m) {
+  RV.mode = m;
+  $("#rvc").style.display = m === "3d" ? "" : "none";
+  $("#rvHint").style.display = m === "3d" ? "" : "none";
+  $("#rvPh").style.display = m === "foto" ? "" : "none";
+  $("#rvFotoBtn").textContent = m === "3d" ? "📷 Ver foto original" : "🧾 Ver copia 3D";
+}
+async function rvShowFotos() {
+  if (RV.mode === "foto") { rvMode("3d"); return; }
+  const r = RV.r, box = $("#rvPh"); rvMode("foto"); box.textContent = "";
+  box.appendChild(el("div", "empty", "Cargando la foto…"));
+  try {
+    if (!RV.fotos[r.id]) RV.fotos[r.id] = (await api("fotos_get", { recibo_id: r.id })).fotos || [];
+    box.textContent = "";
+    RV.fotos[r.id].forEach((b64, i) => {
+      if (RV.fotos[r.id].length > 1) box.appendChild(el("div", "day", `Foto ${i + 1} de ${RV.fotos[r.id].length}`));
+      const im = document.createElement("img"); im.src = "data:image/jpeg;base64," + b64; im.alt = "foto del recibo";
+      im.onclick = () => im.classList.toggle("big"); box.appendChild(im);
+    });
+    if (!RV.fotos[r.id].length) box.appendChild(el("div", "empty", "Este recibo no tiene foto guardada."));
+  } catch (e) { box.textContent = ""; box.appendChild(el("div", "empty", "No pude traer la foto 📡")); }
+}
+function rvClose() { $("#rv").classList.remove("on"); if (RV.three) cancelAnimationFrame(RV.three.raf); }
+$("#rvX").onclick = rvClose;
+$("#rvFotoBtn").onclick = rvShowFotos;
+$("#cq").addEventListener("input", renderCompras);
+$("#cAdd").onclick = () => { showTab("chat"); $("#file").click(); };
+
+/* ---------- Recibos que llegan por el chat ---------- */
+function parseReceiptText(text) {
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const skip = /(sub\s*-?\s*total|\btotal\b|\btax|tend|change|debit|credit|visa|mcard|cash|items sold|ref ?#|\baid\b|terminal|appr|network|survey|thank|walmart|supercenter|mgr|st# ?\d|tc# ?\d|pay from|purchase|signature|verified|low prices|scan|delivery|voided|you saved)/i;
+  const items = []; let pend = null, subtotal = null, tax = null, fecha = null;
+  for (const l of lines) {
+    let m;
+    if ((m = l.match(/sub\s*-?\s*total\D*(\d+[.,]\d{2})/i))) subtotal = parseFloat(m[1].replace(",", "."));
+    else if ((m = l.match(/\btax\d?\b.*?(\d+[.,]\d{2})\s*$/i))) tax = parseFloat(m[1].replace(",", "."));
+    if (!fecha && (m = l.match(/\b(\d{2})\/(\d{2})\/(\d{2})\b/))) fecha = `20${m[3]}-${m[1]}-${m[2]}`;
+    if (skip.test(l)) { pend = null; continue; }
+    if ((m = l.match(/^([A-Z][A-Z0-9 \/&.'-]{1,22}?)\s+\d{5,}\S*\s*[A-Z]?\s+(\d{1,4}[.,]\d{2})\s*[A-Z]?$/i))) { items.push({ c: m[1].trim(), n: m[1].trim(), p: parseFloat(m[2].replace(",", ".")) }); pend = null; continue; }
+    if ((m = l.match(/^([A-Z][A-Z0-9 \/&.'-]{1,22}?)\s+\d{5,}\S*\s*[A-Z]?$/i))) { pend = m[1].trim(); continue; }
+    if (pend && (m = l.match(/(?:lb|for).*?(\d{1,4}[.,]\d{2})\s*[A-Z]?$/i))) { items.push({ c: pend, n: pend, p: parseFloat(m[1].replace(",", ".")) }); pend = null; }
+  }
+  return { items, subtotal, tax, fecha };
+}
+async function saveReciboFromCard(m, mov, estado) {
+  const rec = m._recibo; if (!rec) return;
+  try {
+    const x = await api("recibo_add", { recibo: Object.assign({}, rec, { estado, pago: mov ? m.pago : null, mov_id: mov ? mov.id : null }), fotos: rec.fotos || [], por: S.yo });
+    S.recibos.push(Object.assign(x, { fotos: x.fotos || 0 })); syncRecibos(S.recibos);
+  } catch (e) { toast("El gasto se anotó, pero el recibo no se pudo guardar 📡"); }
+}
+
 /* ---------- Pestañas ---------- */
 function showTab(t) {
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
-  $("#chat").classList.toggle("on", t === "chat"); $("#hist").classList.toggle("on", t === "hist");
+  $("#chat").classList.toggle("on", t === "chat"); $("#hist").classList.toggle("on", t === "hist"); $("#compras").classList.toggle("on", t === "compras");
+  if (t === "compras") renderCompras();
   if (t === "chat") scrollChat();
 }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => showTab(b.dataset.t));
@@ -1116,6 +1509,7 @@ async function load(first) {
       pago: x.pago === "arelis" ? "arelis" : x.pago === "yoan" ? "yoan" : "", delta: Number(x.delta) || 0, cat: Array.from(String(x.cat || "")).slice(0, 2).join(""),
       por: x.por === "arelis" ? "arelis" : x.por === "yoan" ? "yoan" : "", ts: Number(x.ts) || 0 }));
     syncFrases(r.frases || [], first || !S.loaded);
+    if (JSON.stringify(r.recibos || []) !== S._recJson) { S._recJson = JSON.stringify(r.recibos || []); syncRecibos(r.recibos || []); }
     $("#sync").textContent = "🟢 al día";
     const wasLoaded = S.loaded; S.loaded = true;
     if (!wasLoaded || first) { renderBal(false); renderHist(); return; }
