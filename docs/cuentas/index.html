@@ -139,6 +139,18 @@ button{cursor:pointer;border:0;background:none}
 .pp{text-align:right;flex:none}.pp .t{font-weight:800}.pp .s{font-size:12px;color:var(--green);font-weight:800}
 .ifoot{text-align:right;font-size:14px;color:var(--mute);padding:8px 6px 2px;line-height:1.5}.ifoot .b{color:var(--ink);font-weight:800;font-size:16px}
 .row .rcpt{font-size:13px;color:#1f5fbf;font-weight:800;padding:4px 0 0;display:block;margin-left:auto}
+/* ---------- Detalle de la deuda ---------- */
+#bal{cursor:pointer}
+#balAmt::after{content:" ›";font-size:30px;color:var(--mute);vertical-align:3px}
+#dTotal{font-family:"Baloo 2";font-weight:800;font-size:44px;line-height:1;color:var(--red)}
+#dTotal.cero{color:var(--green)}
+#dSince{font-weight:800;color:var(--mute);margin:4px 0 10px}
+.drow{display:flex;gap:10px;align-items:center;background:#fff;border-radius:16px;padding:10px 12px;margin:8px 0;width:100%;text-align:left;box-shadow:0 2px 8px rgba(80,40,20,.06)}
+.drow .ic{width:42px;height:42px;border-radius:12px;background:#fff1e6;display:grid;place-items:center;font-size:22px;flex:none}
+.drow .bd{flex:1;min-width:0}.drow .t{font-weight:800;line-height:1.2}.drow .s{font-size:14px;color:var(--mute);margin-top:2px}
+.drow .a{text-align:right;flex:none}.drow .a .v{font-weight:800;font-size:18px;color:var(--red)}.drow .a .s{font-size:12px}
+.dsum{display:flex;justify-content:space-between;font-weight:800;font-size:18px;padding:10px 4px;border-top:2px dashed var(--line);margin-top:6px}
+
 /* ---------- Visor 3D ---------- */
 #rv{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;background:radial-gradient(120% 80% at 50% 0%,#fff1d6,#ffcfb8 60%,#f4a98c);padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 #rv.on{display:flex;animation:up .3s ease-out}
@@ -251,6 +263,16 @@ button{cursor:pointer;border:0;background:none}
     <div class="s" style="color:var(--mute);font-size:14px;margin-top:6px">Se guarda y también sale en el teléfono del otro. Cuando toquen al muñequito, la puede decir otra vez.</div>
     <div class="flist" id="fList"></div>
     <button type="button" class="ghost" id="fNo">Cerrar</button>
+  </div>
+</div>
+<div id="dsheet" class="sheet2">
+  <div class="in">
+    <h3 id="dTitle"></h3>
+    <div id="dTotal"></div>
+    <div id="dSince"></div>
+    <div id="dList"></div>
+    <button type="button" class="big" id="dPay">💵 Anotar un pago</button>
+    <button type="button" class="ghost" id="dNo">Cerrar</button>
   </div>
 </div>
 <div id="rv">
@@ -1439,6 +1461,45 @@ async function saveReciboFromCard(m, mov, estado) {
     S.recibos.push(Object.assign(x, { fotos: x.fotos || 0 })); syncRecibos(S.recibos);
   } catch (e) { toast("El gasto se anotó, pero el recibo no se pudo guardar 📡"); }
 }
+
+/* ---------- ¿Qué forma la deuda? ---------- */
+// Recorre todo en orden: cada pago (o lo que baja la deuda) tapa primero lo más viejo.
+function openDeudas() {
+  const b = balance(), list = sorted(), owe = b >= 0 ? 1 : -1; // 1: Yoan debe; -1: la Tía debe
+  const queue = []; let extra = 0; // lo pagado de más se usa para la siguiente deuda
+  for (const m of list) {
+    let d = dOf(m) * owe;
+    if (d > 0) { const take = Math.min(extra, d); extra -= take; if (d - take > 0.004) queue.push({ m, left: d - take, orig: d }); }
+    else { d = -d; while (d > 0.004 && queue.length) { const q = queue[0], take = Math.min(q.left, d); q.left -= take; d -= take; if (q.left < 0.005) queue.shift(); } extra += Math.max(0, d); }
+  }
+  const quien = owe > 0 ? "Yoan le debe a la Tía" : "La Tía le debe a Yoan";
+  $("#dTitle").textContent = Math.abs(b) < 0.005 ? "🎉 ¡Tamos echa'o!" : `🧾 ${quien}`;
+  const tot = $("#dTotal"); tot.textContent = money(b); tot.className = Math.abs(b) < 0.005 ? "cero" : "";
+  const box = $("#dList"); box.textContent = "";
+  const daysAgo = f => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ""); if (!m) return ""; const n = Math.round((new Date(new Date().toDateString()) - new Date(+m[1], +m[2] - 1, +m[3])) / 864e5); return n <= 0 ? "hoy" : n === 1 ? "hace 1 día" : `hace ${n} días`; };
+  if (Math.abs(b) < 0.005 || !queue.length) {
+    $("#dSince").textContent = "Nadie le debe nada a nadie ahora mismo.";
+  } else {
+    const first = queue[0].m.fecha;
+    $("#dSince").textContent = first === today() ? "Desde hoy" : `Desde el ${niceDate(first)} (${daysAgo(first)})`;
+    for (const q of queue) {
+      const m = q.m, rc = recByMov(m.id);
+      const r = document.createElement(rc ? "button" : "div"); r.className = "drow"; if (rc) { r.type = "button"; r.onclick = () => openReceipt(rc, -1); }
+      const ic = el("div", "ic", m.cat || catFor(m));
+      const bd = el("div", "bd"); bd.append(el("div", "t", m.desc || "Gasto"), el("div", "s", `${m.fecha === today() ? "desde hoy" : "desde el " + niceDate(m.fecha) + " · " + daysAgo(m.fecha)}${rc ? " · 🧾 ver recibo" : ""}`));
+      const a = el("div", "a"); a.append(el("div", "v", money(q.left)));
+      if (q.left < q.orig - 0.004) a.append(el("div", "s", `queda de ${money(q.orig)}`));
+      r.append(ic, bd, a); box.appendChild(r);
+    }
+    const s = el("div", "dsum"); s.append(el("span", "", "Total"), el("span", "", money(b))); box.appendChild(s);
+  }
+  $("#dPay").textContent = owe > 0 ? "💵 Anotar un pago de Yoan" : "💵 Anotar un pago de la Tía";
+  $("#dPay").onclick = () => { $("#dsheet").classList.remove("on"); openSheet(); MF.tipo = "pago"; MF.pago = owe > 0 ? "yoan" : "arelis"; $("#mDesc").value = "Pago"; drawSheet(); };
+  $("#dsheet").classList.add("on");
+}
+$("#bal").addEventListener("click", () => { if (S.loaded) { openDeudas(); Sfx.boing(); } });
+$("#dNo").onclick = () => $("#dsheet").classList.remove("on");
+$("#dsheet").addEventListener("click", e => { if (e.target.id === "dsheet") $("#dsheet").classList.remove("on"); });
 
 /* ---------- Pestañas ---------- */
 function showTab(t) {
