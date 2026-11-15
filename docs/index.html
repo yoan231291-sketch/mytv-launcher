@@ -94,6 +94,10 @@
   /* Rejillas: ciudades y todas las apps */
 
   /* ---- QR del Wi-Fi (solo aparece cuando se pide desde el control del teléfono) ---- */
+  /* Cuentas Claras a pantalla completa (se abre desde el control del teléfono) */
+  #ccTV { position:fixed; inset:0; z-index:12; display:none; background:#fff6ec; }
+  #ccTV.open { display:block; animation:wqIn .4s ease both; }
+  #ccTV iframe { width:100%; height:100%; border:0; display:block; }
   #wifiQR { position:fixed; inset:0; z-index:9; display:none; align-items:center; justify-content:center; flex-direction:column; overflow:hidden;
     background:radial-gradient(120% 90% at 20% 10%, rgba(88,40,190,.92), rgba(8,10,28,.97) 60%), #070a18; }
   #wifiQR.open { display:flex; animation:wqIn .5s ease both; }
@@ -175,6 +179,7 @@
   <h3 id="wqTitle">Conéctate al Wi-Fi</h3><div class="net" id="wqNet"></div><div class="hint" id="wqHint">Apunta la cámara de tu celular al código</div><div class="bar" id="wqBar"></div></div>
 <div class="overlay" id="ovApps"><h2>Todas las apps</h2><div class="grid" id="gridApps" style="--cols:6"></div></div>
 
+<div id="ccTV"><iframe id="ccFrame" title="Cuentas Claras"></iframe></div>
 <div id="toast"></div>
 
 <script>
@@ -392,8 +397,26 @@ function wifiQRCmd(id) {
   if (hex) { try { const b = new Uint8Array(hex.match(/../g).map(h => parseInt(h, 16))); w = JSON.parse(new TextDecoder().decode(b)); localStorage.setItem('mytv-wifi', JSON.stringify(w)); } catch (e) { } }
   showWifiQR(w && w.s, w && w.p);
 }
+// ---------- Cuentas Claras (Yoan y la Tía) ----------
+// id = "cuentas-<hex>": el teléfono manda la clave del link (se guarda solo en esta TV) · "cuentas": usa la guardada
+const ccOpen = () => $('ccTV').classList.contains('open');
+function cuentasCmd(id) {
+  const hex = id.slice(8);
+  if (hex) { try { const k = new TextDecoder().decode(new Uint8Array(hex.match(/../g).map(x => parseInt(x, 16)))); if (/^[A-Za-z0-9_-]{20,}$/.test(k)) localStorage.setItem('cc-k', k); } catch (e) { } }
+  let k = null; try { k = localStorage.getItem('cc-k'); } catch (e) { }
+  if (!k) { toast('Primero manda el link de Cuentas desde el control del teléfono'); return; }
+  closeOverlay(); if ($('wifiQR').classList.contains('open')) hideWifiQR();
+  const f = $('ccFrame'), src = 'cuentas/#k=' + encodeURIComponent(k) + '&u=yoan&tv=1';
+  if (!f.src || !f.src.endsWith(src)) f.src = src; else { try { f.contentWindow.ccLoad && f.contentWindow.ccLoad(); } catch (e) { } }
+  $('ccTV').classList.add('open'); document.body.classList.remove('idle'); clearTimeout(idleT);
+  setTimeout(() => { try { f.focus(); f.contentWindow.focus(); } catch (e) { } }, 500);
+}
+function cuentasBack() {   // Atrás: primero cierra lo abierto dentro de Cuentas; si no hay nada, vuelve a las cámaras
+  let used = false; try { const w = $('ccFrame').contentWindow; used = !!(w.ccBack && w.ccBack()); } catch (e) { }
+  if (!used) { $('ccTV').classList.remove('open'); try { $('ccFrame').blur(); window.focus(); } catch (e) { } wake(); }
+}
 // Desde el control del teléfono: cambiar a una ciudad por su id
-window.selectCityById = id => { if (id === 'wifiqr' || id.startsWith('wifiqr-')) return wifiQRCmd(id); const i = CITIES.findIndex(c => c.id === id); if (i >= 0) { closeOverlay(); wake(); selectCity(i, true); } };
+window.selectCityById = id => { if (id === 'cuentas' || id.startsWith('cuentas-')) return cuentasCmd(id); if (ccOpen()) { $('ccTV').classList.remove('open'); window.focus(); } if (id === 'wifiqr' || id.startsWith('wifiqr-')) return wifiQRCmd(id); const i = CITIES.findIndex(c => c.id === id); if (i >= 0) { closeOverlay(); wake(); selectCity(i, true); } };
 
 // ---------- Ciudad y cámara (con auto-reparación) ----------
 // Cámaras que fallaron: se evitan durante 12 h (los enlaces de YouTube en vivo cambian cada pocos días)
@@ -667,6 +690,7 @@ function toast(m) { $('toast').textContent = m; $('toast').classList.add('show')
 // ---------- Control remoto ----------
 // Teclas que manda la app nativa: back, menu, playpause, ff, rew
 window.tvKey = k => {
+  if (ccOpen()) { if (k === 'back' || k === 'menu') cuentasBack(); return; }
   if ($('wifiQR').classList.contains('open')) { hideWifiQR(); return; }
   if (quadLive) { if (k === 'back' || k === 'menu' || k === 'playpause') { stopQuadLive(true); wake(); } return; }
   if (k === 'back') { if (ov) closeOverlay(); else if (isIdle()) wake(); else { document.body.classList.add('idle'); clearTimeout(idleT); } return; }
@@ -678,6 +702,7 @@ window.tvKey = k => {
 
 document.addEventListener('keydown', e => {
   const k = e.key;
+  if (ccOpen()) { if (k === 'Escape' || k === 'Backspace') { e.preventDefault(); cuentasBack(); } else { try { $('ccFrame').contentWindow.focus(); } catch (er) { } } return; }
   if ($('wifiQR').classList.contains('open')) { e.preventDefault(); hideWifiQR(); return; }
   if (quadLive) {
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter'].includes(k)) e.preventDefault();

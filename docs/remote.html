@@ -133,6 +133,8 @@
   <button class="pill" data-k="mute">Silenciar</button>
 </div>
 <div class="wide" style="grid-template-columns:1fr"><button class="pill" data-k="mosaic">Recorrido: otra ciudad cada 3 min (prender/apagar)</button></div>
+<div class="wide" style="grid-template-columns:1fr"><button class="pill" id="ccBtn">💰 Cuentas con la Tía</button></div>
+<form id="ccForm" class="type" style="flex-direction:column" hidden><input id="ccIn" type="url" placeholder="Pega aquí el link de Cuentas Claras" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="pill" type="submit">Guardar y abrir en la TV</button></form>
 <div class="wide" style="grid-template-columns:1fr"><button class="pill" id="wifiBtn">Mostrar QR para conectarse al Wi-Fi</button></div>
 <details class="howto" id="wifiCfg" style="margin-top:8px"><summary>Wi-Fi del QR</summary>
   <p class="note" style="margin:8px 0">Se guarda solo en este teléfono y en tu TV (no en internet ni en GitHub). Lo escribes una vez.</p>
@@ -307,6 +309,29 @@ document.querySelectorAll('[data-k]').forEach(b => {
     if (!s) return toast('Falta el nombre de la red');
     w = { s, p }; try { localStorage.setItem('mytv-wifi', JSON.stringify(w)); } catch (e) { }
     lock(true); show(true);
+  });
+})();
+
+// Cuentas Claras en la TV: el link (con su clave) vive solo en este teléfono y en la TV
+(function () {
+  const hex = s => Array.from(new TextEncoder().encode(s)).map(x => x.toString(16).padStart(2, '0')).join('');
+  const get = () => { try { return localStorage.getItem('mytv-cc') || ''; } catch (e) { return ''; } };
+  const open = async () => {
+    const k = get();
+    if (!k) { $('ccForm').hidden = false; $('ccIn').focus(); toast('Pega una vez el link de Cuentas Claras'); return; }
+    await send('city', 'cuentas-' + hex(k));
+    toast('💰 Cuentas en la TV · Atrás para volver');
+  };
+  $('ccBtn').addEventListener('click', open);
+  let pressT; // mantener presionado = cambiar el link guardado
+  $('ccBtn').addEventListener('pointerdown', () => { pressT = setTimeout(() => { $('ccForm').hidden = false; $('ccIn').value = ''; $('ccIn').focus(); toast('Pega el link nuevo de Cuentas'); }, 900); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => $('ccBtn').addEventListener(t, () => clearTimeout(pressT)));
+  $('ccForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const m = $('ccIn').value.match(/[#&?]k=([A-Za-z0-9_-]{20,})/);
+    if (!m) return toast('Ese no es el link de Cuentas (debe tener #k=)');
+    try { localStorage.setItem('mytv-cc', m[1]); } catch (er) { }
+    $('ccForm').hidden = true; $('ccIn').value = ''; document.activeElement && document.activeElement.blur(); open();
   });
 })();
 

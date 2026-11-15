@@ -141,6 +141,20 @@ button{cursor:pointer;border:0;background:none}
 .pp{text-align:right;flex:none}.pp .t{font-weight:800}.pp .s{font-size:12px;color:var(--green);font-weight:800}
 .ifoot{text-align:right;font-size:14px;color:var(--mute);padding:8px 6px 2px;line-height:1.5}.ifoot .b{color:var(--ink);font-weight:800;font-size:16px}
 .row .rcpt{font-size:13px;color:#1f5fbf;font-weight:800;padding:4px 0 0;display:block;margin-left:auto}
+/* ---------- Modo TV (se abre desde el control de la tele) ---------- */
+body.tv{font-size:20px}
+body.tv #app{display:grid;grid-template-columns:56% 44%;grid-template-rows:auto 1fr;height:100vh;padding:0}
+body.tv #stage{grid-column:1;grid-row:1/3;height:100vh;max-height:none;min-height:0;border-radius:0}
+body.tv #tabs{grid-column:2;grid-row:1;padding-top:14px}
+body.tv .pane{grid-column:2;grid-row:2;scroll-behavior:smooth}
+body.tv #chips,body.tv #bar,body.tv #whoBtn,body.tv #tabs button[data-t="chat"]{display:none!important}
+body.tv #tabs button{font-size:18px;padding:12px 4px}
+body.tv #tabs button.on{box-shadow:0 0 0 4px var(--coral)}
+#tvHint{display:none}
+body.tv #tvHint{display:block;position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(42,34,51,.82);color:#fff;font-weight:800;font-size:15px;padding:8px 16px;border-radius:999px;white-space:nowrap;z-index:3}
+body.tv #sync{bottom:60px}
+body.tv #balAmt{font-size:52px}
+
 /* ---------- Mensajes ---------- */
 #tabs{gap:6px}
 #tabs button{position:relative;font-size:14px;padding:10px 2px}
@@ -219,6 +233,7 @@ button{cursor:pointer;border:0;background:none}
     </div>
     <div id="party">¡Tamos echa'o! 🎉</div>
     <div id="sync">⏳ conectando…</div>
+    <div id="tvHint">◀ ▶ cambiar · ▲ ▼ bajar · OK ver la deuda · Atrás salir</div>
   </div>
 
   <div id="tabs">
@@ -1807,6 +1822,33 @@ function notifyChanges(prevMovs, prevRecs) {
   }
 }
 
+/* ---------- Modo TV: se maneja con las flechas del control ---------- */
+const TVMODE = HP.get("tv") === "1";
+const TV_TABS = ["compras", "hist", "msgs"];
+if (TVMODE) {
+  document.body.classList.add("tv");
+  document.addEventListener("keydown", e => {
+    const k = e.key;
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter"].includes(k)) return;
+    e.preventDefault();
+    if ($("#rv").classList.contains("on") && RV.three) { if (k === "ArrowUp") RV.three.y -= 0.35; if (k === "ArrowDown") RV.three.y += 0.35; RV.three.auto = false; return; }
+    const sheetOpen = document.querySelector(".sheet2.on");
+    if (sheetOpen) { const s = sheetOpen.querySelector(".in"); if (k === "ArrowDown") s.scrollTop += 160; else if (k === "ArrowUp") s.scrollTop -= 160; else if (k === "Enter") window.ccBack(); return; }
+    const i = Math.max(0, TV_TABS.indexOf(S.tab));
+    if (k === "ArrowRight") showTab(TV_TABS[(i + 1) % TV_TABS.length]);
+    else if (k === "ArrowLeft") showTab(TV_TABS[(i + TV_TABS.length - 1) % TV_TABS.length]);
+    else if (k === "ArrowDown" || k === "ArrowUp") { const p = document.querySelector(".pane.on"); if (p) p.scrollTop += (k === "ArrowDown" ? 1 : -1) * p.clientHeight * 0.6; }
+    else if (k === "Enter") openDeudas();
+  });
+}
+// Atrás desde la tele: primero cierra lo que esté abierto aquí; si no hay nada, la tele vuelve a las cámaras
+window.ccBack = () => {
+  if ($("#rv").classList.contains("on")) { rvClose(); return true; }
+  const s = document.querySelector(".sheet2.on, #sheet.on"); if (s) { s.classList.remove("on"); return true; }
+  return false;
+};
+window.ccLoad = () => load();
+
 /* ---------- Pegar el link cuando falta la clave ---------- */
 function askKey(msg) {
   $("#kErr").textContent = msg || ""; $("#ksheet").classList.add("on");
@@ -1920,6 +1962,7 @@ async function load(first) {
   }
 }
 load(true);
+if (TVMODE) showTab("hist");
 setInterval(() => { if (document.visibilityState === "visible" && !S.busy) load(); }, 8000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(); });
 </script>
