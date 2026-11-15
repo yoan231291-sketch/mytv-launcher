@@ -286,6 +286,16 @@ button{cursor:pointer;border:0;background:none}
     <button type="button" class="ghost" id="fNo">Cerrar</button>
   </div>
 </div>
+<div id="ksheet" class="sheet2">
+  <div class="in">
+    <h3>🔑 Falta tu link</h3>
+    <div class="pstep">Esta app se abrió sin la clave. Pega aquí el link de Cuentas Claras que te mandaron (el que empieza con https://yoan231291-sketch.github.io/...).</div>
+    <input id="kTxt" type="url" placeholder="Pega el link aquí" autocomplete="off">
+    <button type="button" class="big" id="kPaste">📋 Pegar el link</button>
+    <button type="button" class="big" id="kOk" style="background:var(--ink)">✅ Entrar</button>
+    <div class="pstep" id="kErr" style="color:var(--red);font-size:15px"></div>
+  </div>
+</div>
 <div id="asheet" class="sheet2">
   <div class="in">
     <h3>📎 ¿Qué le quieres mandar?</h3>
@@ -345,6 +355,20 @@ const API = "https://eythwqbeatakgsvjhrbl.supabase.co/functions/v1/cuentas-clara
 const HP = new URLSearchParams(location.hash.slice(1));
 let KEY = HP.get("k") || "";
 try { if (KEY) localStorage.setItem("cc_k", KEY); else KEY = localStorage.getItem("cc_k") || ""; } catch (e) {}
+// El ícono de "pantalla de inicio" debe abrir el link completo (con la clave), no la página sin clave.
+(function linkManifest() {
+  if (!KEY) return;
+  try {
+    const base = location.href.split("#")[0].replace(/[^/]*$/, "");
+    const who = HP.get("u") || (localStorage.getItem("cc_yo") || "");
+    const start = base + "#k=" + encodeURIComponent(KEY) + (who ? "&u=" + who : "");
+    const man = { name: "Cuentas Claras", short_name: "Cuentas", start_url: start, scope: base, display: "standalone", background_color: "#fff6ec", theme_color: "#ffd9c2",
+      icons: [{ src: base + "icon-180.png", sizes: "180x180", type: "image/png" }, { src: base + "icon-512.png", sizes: "512x512", type: "image/png" }] };
+    const l = document.querySelector('link[rel="manifest"]');
+    if (l) l.href = "data:application/manifest+json;charset=utf-8," + encodeURIComponent(JSON.stringify(man));
+  } catch (e) {}
+})();
+
 async function api(action, payload = {}) {
   const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ k: KEY, action, yo: S.yo }, payload)) });
   let j = null; try { j = await r.json(); } catch (e) {}
@@ -1783,6 +1807,24 @@ function notifyChanges(prevMovs, prevRecs) {
   }
 }
 
+/* ---------- Pegar el link cuando falta la clave ---------- */
+function askKey(msg) {
+  $("#kErr").textContent = msg || ""; $("#ksheet").classList.add("on");
+}
+function useLink(txt) {
+  const m = String(txt || "").match(/[#&?]k=([A-Za-z0-9_\-%]{20,})/);
+  if (!m) { $("#kErr").textContent = "Ese no parece el link correcto 🤔. Debe tener #k= en el final."; return; }
+  const k = decodeURIComponent(m[1]); const u = (String(txt).match(/[#&?]u=(yoan|arelis)/) || [])[1];
+  try { localStorage.setItem("cc_k", k); if (u) localStorage.setItem("cc_yo", u); } catch (e) {}
+  location.replace(location.href.split("#")[0] + "#k=" + encodeURIComponent(k) + (u ? "&u=" + u : ""));
+  location.reload();
+}
+$("#kOk").onclick = () => useLink($("#kTxt").value);
+$("#kPaste").onclick = async () => {
+  try { const t = await navigator.clipboard.readText(); $("#kTxt").value = t; useLink(t); }
+  catch (e) { $("#kErr").textContent = "No pude leer lo copiado. Mantén el dedo en la cajita de arriba y toca Pegar."; $("#kTxt").focus(); }
+};
+
 /* ---------- Pestañas ---------- */
 function showTab(t) {
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
@@ -1836,8 +1878,8 @@ renderWho(); renderHist();
 addMsg("bot", "¡Hola! Soy Cuentín 🐷. Dime cosas como \"pagué el mercado, 84\" o \"le pagué 120 a la Tía\", o mándame la foto del recibo 📷. Yo te enseño la cuenta antes de anotar.");
 
 // ¿Quién es? (viene en el link: #k=…&u=yoan o &u=arelis)
-if (!S.yoFixed) {
-  const pick = document.createElement("div"); pick.id = "sheet"; pick.className = "on"; pick.style.alignItems = "center";
+if (!S.yoFixed && KEY) {
+  const pick = document.createElement("div"); pick.id = "whosheet"; pick.className = "sheet2 on"; pick.style.alignItems = "center";
   const box = document.createElement("div"); box.className = "in"; box.style.borderRadius = "26px"; box.style.margin = "16px";
   const h3 = document.createElement("h3"); h3.textContent = "¿Quién eres? 👋";
   box.appendChild(h3);
@@ -1851,7 +1893,7 @@ if (!S.yoFixed) {
 $("#cam").classList.remove("off");
 
 async function load(first) {
-  if (!KEY) { $("#sync").textContent = "🔑 falta la clave"; S.loaded = true; renderBal(false); renderHist(); addMsg("bot", "A este link le falta la clave 🔑. Pídele el link completo a Yoan."); return; }
+  if (!KEY) { $("#sync").textContent = "🔑 falta la clave"; askKey(); return; }
   try {
     const r = await api("list");
     const prev = new Set(S.movs.map(m => m.id)), prevMovs = S.movs.slice(), prevRecs = S.recibos.map(r => ({ id: r.id, estado: r.estado }));
