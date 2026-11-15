@@ -135,6 +135,8 @@ button{cursor:pointer;border:0;background:none}
 .irow,.prow{display:flex;width:100%;text-align:left;gap:10px;align-items:center;padding:9px 6px;border-radius:12px}
 .prow{background:#fff;margin:6px 0;padding:10px 12px;box-shadow:0 2px 8px rgba(80,40,20,.06)}
 .irow:active,.prow:active{background:#fff3cf}
+.pic{width:42px;height:42px;border-radius:12px;background:#fff1e6;display:grid;place-items:center;font-size:24px;flex:none}
+.prow .pic{background:#fff6ec}
 .pn{flex:1;min-width:0}.pn .t{font-weight:800;line-height:1.2}.pn .s{font-size:12px;color:var(--mute);margin-top:2px}
 .pp{text-align:right;flex:none}.pp .t{font-weight:800}.pp .s{font-size:12px;color:var(--green);font-weight:800}
 .ifoot{text-align:right;font-size:14px;color:var(--mute);padding:8px 6px 2px;line-height:1.5}.ifoot .b{color:var(--ink);font-weight:800;font-size:16px}
@@ -1172,6 +1174,71 @@ function syncRecibos(list) {
   }));
   renderCompras();
 }
+/* Ícono de cada producto (por su nombre en español o el código del recibo) */
+const ICONS = [
+  ["perro|dog|purina|pedigree|ped adult|cesar|csr stk|dog chow|dc lmb|ol' roy|or filmigc|rawhide|rtv|training pad|bags w/disp", "🐶"],
+  ["aguacate|avocado", "🥑"],
+  ["sandia|watermelon", "🍉"],
+  ["aceituna|olive|olv|jack's|jacks", "🫒"],
+  [" agua (|24pk dr|40pk", "💧"],
+  ["coca|coke|sprite|fanta|refresco|tampico|tamp|cristales de sabor|crystals|sorbete|straw", "🥤"],
+  ["jugo|juice|gv oj", "🧃"],
+  ["leche condensada|cond milk", "🥫"],
+  ["helado|ice cream|ic pail|choc ic|neapltn", "🍨"],
+  ["crema de chocolate y mani|pnut|peanut", "🥜"],
+  ["cocoa|chocolate|hershey|hsy", "🍫"],
+  ["yogur|yog", "🥣"],
+  ["leche|milk|whole gal", "🥛"],
+  ["queso|cheese|crm chs|parm|slc|amrica", "🧀"],
+  ["pimiento|aji|bell pepper|red pep", "🫑"],
+  ["tocineta|bacon|bacn|papada|jowls", "🥓"],
+  ["salchicha|sausage|ssg|wnrs|bar-s|bars meat|bologna|bologn|salami|pepperoni|cc pep", "🌭"],
+  ["pavo|turkey|tky", "🦃"],
+  ["pollo|chicken|ckn|tyson|ty leg|mollejas|gizzards", "🍗"],
+  ["carne molida|gb r|ground", "🥩"],
+  ["jamon|ham|chuleta|chops|costilla|rib|cerdo|pork", "🍖"],
+  ["atun|tuna|sardina|sardines", "🐟"],
+  ["huevo|egg", "🥚"],
+  ["pan frances|french bread", "🥖"],
+  ["pan|bread|roll|kaiser|wht bol|relleno|stuffers", "🍞"],
+  ["arroz|rice", "🍚"],
+  ["pelo de angel|pasta|bar angel|spaghetti", "🍝"],
+  ["salsa|prego|ragu|bertolli|ber tom", "🥫"],
+  ["tomate|tomato", "🍅"],
+  ["cebolla|cebollin|onion", "🧅"],
+  ["papaya|mango", "🥭"],
+  ["papa|potato|hash", "🥔"],
+  ["sazon|kndr|cilantro|perejil|oregano|comino|cumin|mccormick|mcc/sch", "🌿"],
+  ["ajo|garlic", "🧄"],
+  ["zanahoria|carrot", "🥕"],
+  ["platano|plantain|guineo|banana", "🍌"],
+  ["limon|lime", "🍋"],
+  ["pina|pineapple", "🍍"],
+  ["mandarina|clementina|naranja|mand 3|clem", "🍊"],
+  ["arandano|cranberry", "🍒"],
+  ["ensalada|salad|vegetales|prep prod", "🥗"],
+  ["frijol|bean|great northern", "🫘"],
+  ["aceite|oil", "🫗"],
+  ["mayonesa|mayo|mostaza|mstrd|ketchup|aderezo|ranch|dressing|drsng|crmy french|ital", "🫙"],
+  ["azucar|sugar|sal morton|mrton|salt", "🧂"],
+  ["cafe|coffee", "☕"],
+  ["galleta|cookie|oreo|ckie", "🍪"],
+  ["bizcocho|cake|magdalena", "🍰"],
+  ["sirope|granadina|marinada|marinade|miel|honey", "🍯"],
+  ["tequila|cuervo|vino|wine|cerveza|beer", "🥃"],
+  ["papel de bano|toilet|scott|ulsof|servilleta|napkin|nap 400", "🧻"],
+  ["esponja|sponge", "🧽"],
+  ["detergente|tide|jabon|soap", "🧺"],
+  ["bombillo|bulb|lk b11", "💡"],
+  ["rosa|rose|flor|flower", "🌹"],
+  ["machacador|chopper|crock", "🍴"],
+].map(([k, e]) => [k.split("|").map(norm), e]);
+function iconFor(it) {
+  const s = " " + norm(it.n) + " | " + norm(it.c) + " ";
+  for (const [keys, e] of ICONS) if (keys.some(k => s.includes(k))) return e;
+  return "🛒";
+}
+
 const recByMov = id => S.recibos.find(r => r.mov_id && r.mov_id === id);
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -1188,6 +1255,7 @@ function renderCompras() {
     box.appendChild(el("div", "day", hits.length ? `${hits.length} ${hits.length === 1 ? "vez" : "veces"} comprado` : "No encontré ese producto 🤔"));
     for (const { r, it, i } of hits) {
       const row = el("button", "prow"); row.type = "button";
+      row.appendChild(el("div", "pic", iconFor(it)));
       const a = el("div", "pn"); a.append(el("div", "t", it.n), el("div", "s", `${niceDate(r.fecha)} · ${r.tienda} · ${it.c}`));
       const b = el("div", "pp"); b.append(el("div", "t", money(it.p)), el("div", "s", "mitad " + money(it.p / 2)));
       row.append(a, b); row.onclick = () => openReceipt(r, i); box.appendChild(row);
@@ -1236,6 +1304,7 @@ function renderCompras() {
       const list = el("div", "ilist");
       r.items.forEach((it, i) => {
         const row = el("button", "irow"); row.type = "button";
+        row.appendChild(el("div", "pic", iconFor(it)));
         const a = el("div", "pn"); a.append(el("div", "t", it.n), el("div", "s", it.c));
         const b = el("div", "pp"); b.append(el("div", "t", money(it.p)), el("div", "s", "mitad " + money(it.p / 2)));
         row.append(a, b); row.onclick = () => openReceipt(r, i); list.appendChild(row);
@@ -1307,7 +1376,8 @@ function receiptCanvas(r, hi) {
       g.fillStyle = "rgba(255,214,64,.85)"; g.beginPath(); g.roundRect ? g.roundRect(PAD - 12, y - 25, W - 2 * PAD + 24, LH * 2 + 4, 10) : g.rect(PAD - 12, y - 25, W - 2 * PAD + 24, LH * 2 + 4); g.fill();
       hiY = y + LH / 2;
     }
-    txt(fit(it.n, W - 2 * PAD - 235, 20), PAD, y, 20, "left", "#2a2233", i === hi ? "800" : "600");
+    g.font = `22px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; g.textAlign = "left"; g.fillStyle = "#000"; g.fillText(iconFor(it), PAD - 4, y + 1);
+    txt(fit(it.n, W - 2 * PAD - 268, 20), PAD + 30, y, 20, "left", "#2a2233", i === hi ? "800" : "600");
     txt(money(it.p), W - PAD - 110, y, 20, "right", "#2a2233", i === hi ? "800" : "600");
     txt(money(it.p / 2), W - PAD, y, 20, "right", "#21a366", "800");
     if (i === hi) { y += LH; txt("código del recibo: " + it.c, PAD, y, 16, "left", "#6b5a2a", "700"); }
@@ -1338,7 +1408,7 @@ function rvInit() {
   const T = { renderer, scene, cam, group, mesh: null, shadow: null, y: 0, vy: 0, ty: null, rotY: 0, zoom: 1, t0: 0, minY: 0, maxY: 0, h: 1, raf: 0 };
   // gestos: arrastrar = desplazar / girar; dos dedos = acercar
   const pts = new Map(); let last = null, pinch0 = null, zoom0 = 1;
-  canvas.addEventListener("pointerdown", e => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); last = { x: e.clientX, y: e.clientY, t: performance.now() }; T.ty = null; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = T.zoom; } });
+  canvas.addEventListener("pointerdown", e => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); last = { x: e.clientX, y: e.clientY, t: performance.now() }; T.auto = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = T.zoom; } });
   canvas.addEventListener("pointermove", e => {
     if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pts.size === 2 && pinch0) { const [a, b] = [...pts.values()]; T.zoom = Math.max(0.6, Math.min(3, zoom0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch0)); return; }
@@ -1351,7 +1421,7 @@ function rvInit() {
   });
   const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null; if (!pts.size) last = null; };
   canvas.addEventListener("pointerup", up); canvas.addEventListener("pointercancel", up);
-  canvas.addEventListener("wheel", e => { e.preventDefault(); T.y += e.deltaY * 0.0015; T.ty = null; }, { passive: false });
+  canvas.addEventListener("wheel", e => { e.preventDefault(); T.y += e.deltaY * 0.0015; T.auto = false; }, { passive: false });
   RV.three = T; return T;
 }
 
@@ -1374,11 +1444,8 @@ function rvBuild(r, hi) {
   T.mesh = new THREE.Mesh(geo, mat); T.group.add(T.mesh);
   T.shadow = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.04, h * 1.01), new THREE.MeshBasicMaterial({ color: 0x5a3020, transparent: true, opacity: 0.16 }));
   T.shadow.position.set(0.035, -0.03, -0.09); T.group.add(T.shadow);
-  T.h = h; T.minY = -(h / 2 - 0.45); T.maxY = h / 2 - 0.45;
-  if (T.maxY < T.minY) T.minY = T.maxY = 0;
-  const yFor = f => Math.max(T.minY, Math.min(T.maxY, (f - 0.5) * h));
-  T.ty = hiFrac != null ? yFor(hiFrac) : T.maxY; // empieza arriba, o en el producto tocado
-  T.y = T.minY - 1.2; T.vy = 0; T.rotY = 0.9; T.zoom = 1; T.t0 = performance.now();
+  T.h = h; T.hiFrac = hiFrac; T.auto = true; // va solo al producto tocado (o arriba del todo)
+  T.y = -h / 2 - 1.2; T.vy = 0; T.rotY = 0.9; T.zoom = 1; T.t0 = performance.now();
 }
 
 function rvLoop() {
@@ -1386,7 +1453,11 @@ function rvLoop() {
   const c = $("#rvc"), w = c.clientWidth, hgt = c.clientHeight;
   if (c.width !== Math.round(w * T.renderer.getPixelRatio()) || c.height !== Math.round(hgt * T.renderer.getPixelRatio())) { T.renderer.setSize(w, hgt, false); T.cam.aspect = w / hgt; T.cam.updateProjectionMatrix(); }
   const t = (performance.now() - T.t0) / 1000;
-  if (T.ty != null) T.y += (T.ty - T.y) * 0.08; else { T.y += T.vy; T.vy *= 0.92; }
+  const fitDist0 = 0.78 / Math.tan(THREE.MathUtils.degToRad(T.cam.fov / 2)) / Math.min(1, T.cam.aspect * 1.25);
+  const dist0 = Math.max(0.5, fitDist0 / T.zoom), vh = dist0 * Math.tan(THREE.MathUtils.degToRad(T.cam.fov / 2)) - 0.04;
+  T.maxY = Math.max(0, T.h / 2 - vh); T.minY = -T.maxY;
+  if (T.auto) { const tgt = T.hiFrac != null ? Math.max(T.minY, Math.min(T.maxY, (T.hiFrac - 0.5) * T.h)) : T.maxY; T.y += (tgt - T.y) * 0.08; }
+  else { T.y += T.vy; T.vy *= 0.92; }
   if (T.y < T.minY) { T.y += (T.minY - T.y) * 0.25; T.vy = 0; } if (T.y > T.maxY) { T.y += (T.maxY - T.y) * 0.25; T.vy = 0; }
   T.rotY *= 0.94;
   T.group.position.y = T.y;
