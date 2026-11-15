@@ -1204,7 +1204,9 @@ function renderCompras() {
       const ya = el("button", "", "📝 Ya estaba"); ya.type = "button"; ya.onclick = () => setRecibo(r, { estado: "nota" }); pb.appendChild(ya);
       card.appendChild(pb);
     } else {
-      const un = el("button", "undo", r.estado === "cuenta" ? "↩️ Quitar de la cuenta" : "↩️ Marcar como pendiente"); un.type = "button";
+      const conf = S.confirmRec === r.id;
+      const un = el("button", "undo", conf ? "⚠️ ¿Seguro? Toca otra vez para confirmar" : r.estado === "cuenta" ? "↩️ Quitar de la cuenta" : "↩️ Marcar como pendiente"); un.type = "button";
+      if (conf) un.style.color = "var(--red)";
       un.onclick = () => unRecibo(r, un); card.appendChild(un);
     }
 
@@ -1227,7 +1229,7 @@ function renderCompras() {
 }
 
 async function setRecibo(r, upd) {
-  try { const x = await api("recibo_set", Object.assign({ id: r.id }, upd)); Object.assign(r, { estado: x.estado, pago: x.pago, mov_id: x.mov_id }); renderCompras(); renderHist(); }
+  try { const x = await api("recibo_set", Object.assign({ id: r.id }, upd)); Object.assign(r, { estado: x.estado, pago: x.pago, mov_id: x.mov_id }); S._recJson = null; renderCompras(); renderHist(); }
   catch (e) { writeErr(e); }
 }
 async function payRecibo(r, pago, btn) {
@@ -1240,8 +1242,8 @@ async function payRecibo(r, pago, btn) {
   } catch (e) { writeErr(e); if (btn) btn.disabled = false; }
 }
 async function unRecibo(r, btn) {
-  if (btn.dataset.c !== "1") { btn.dataset.c = "1"; btn.textContent = r.estado === "cuenta" ? "¿Seguro? Toca otra vez para quitarlo" : "¿Seguro? Toca otra vez"; return; }
-  btn.disabled = true;
+  if (S.confirmRec !== r.id) { S.confirmRec = r.id; renderCompras(); clearTimeout(S._confT); S._confT = setTimeout(() => { S.confirmRec = null; renderCompras(); }, 6000); return; }
+  S.confirmRec = null; btn.disabled = true;
   try {
     if (r.estado === "cuenta" && r.mov_id) { await api("del", { id: r.mov_id }); S.movs = S.movs.filter(x => x.id !== r.mov_id); afterChange(); }
     await setRecibo(r, { estado: "pendiente", pago: null, mov_id: null });
