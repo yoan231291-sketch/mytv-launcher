@@ -6,7 +6,7 @@ self.addEventListener("push", e => {
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(d.title || "Cuentas Claras", {
     body: d.body || "Hay algo nuevo en las cuentas",
-    icon: "icon-180.png", badge: "icon-180.png", tag: d.tag || "cc", renotify: true
+    icon: "icon-180.png?v=2", badge: "icon-180.png?v=2", tag: d.tag || "cc", renotify: true
   }));
 });
 self.addEventListener("notificationclick", e => {
