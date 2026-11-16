@@ -70,7 +70,7 @@
   .alexa .ring { width:18px; height:18px; border-radius:50%; border:3px solid #00caff; box-sizing:border-box; }
   .alexa.listening .ring { animation:alx 1s ease-in-out infinite; }
   @keyframes alx { 50% { box-shadow:0 0 0 6px rgba(0,202,255,.25); } }
-  .drawlink[hidden], .type[hidden] { display:none !important; }
+  .drawlink[hidden], .type[hidden], #wifiLocked[hidden] { display:none !important; }
   .drawlink { display:block; margin-top:12px; text-align:center; text-decoration:none; background:var(--fg); color:var(--bg); }
   .type { display:flex; gap:8px; margin-top:12px; }
   .type input { flex:1; min-width:0; border:0; border-radius:14px; background:var(--key); color:var(--fg); padding:14px; font-size:16px; }
@@ -133,6 +133,15 @@
   <button class="pill" data-k="mute">Silenciar</button>
 </div>
 <div class="wide" style="grid-template-columns:1fr"><button class="pill" data-k="mosaic">Recorrido: otra ciudad cada 3 min (prender/apagar)</button></div>
+<div class="wide" style="grid-template-columns:1fr"><button class="pill" id="ccBtn">💰 Cuentas con la Tía</button></div>
+<form id="ccForm" class="type" style="flex-direction:column" hidden><input id="ccIn" type="url" placeholder="Pega aquí el link de Cuentas Claras" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="pill" type="submit">Guardar y abrir en la TV</button></form>
+<div class="wide" style="grid-template-columns:1fr"><button class="pill" id="wifiBtn">Mostrar QR para conectarse al Wi-Fi</button></div>
+<details class="howto" id="wifiCfg" style="margin-top:8px"><summary>Wi-Fi del QR</summary>
+  <p class="note" style="margin:8px 0">Se guarda solo en este teléfono y en tu TV (no en internet ni en GitHub). Lo escribes una vez.</p>
+  <form id="wifiForm" class="type" style="flex-direction:column"><input id="wifiS" type="text" placeholder="Nombre de la red (Wi-Fi)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <input id="wifiP" type="password" placeholder="Contraseña" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="pill" type="submit" id="wifiSave">Guardar y mostrar en la TV</button></form>
+  <div id="wifiLocked" hidden><p class="note" style="margin:8px 0">✓ Guardado: <b id="wifiName"></b></p><button class="pill" type="button" id="wifiChange" style="width:100%">Cambiar nombre o contraseña</button></div>
+</details>
 
 <button class="pill alexa" id="alexa" aria-label="Hablarle a la TV"><span class="ring"></span><span id="alexaTxt">Alexa · toca y habla</span></button>
 <form id="voiceForm" class="type" hidden><input id="voiceIn" type="text" placeholder="Toca 🎤 del teclado y di la orden" autocomplete="off" enterkeyhint="send"><button class="pill" type="submit">Enviar</button></form>
@@ -254,16 +263,77 @@ function setOnline(on) { $('status').classList.toggle('off', !on); $('status').q
 function showErr(m) { $('err').textContent = m; $('err').style.display = 'block'; }
 
 // Botones: responden al tocar (sin esperar), y volumen/flechas se repiten si los mantienes presionados
+// El comando se manda al SOLTAR el dedo sobre el botón (no al tocar): así el gesto de salir de la app
+// (deslizar desde el borde de abajo, cambiar de app, etc.) no dispara silenciar/pausa por accidente.
+let hiddenAt = 0;
+['visibilitychange','pagehide','blur'].forEach(t => addEventListener(t, () => { hiddenAt = Date.now(); }));
 document.querySelectorAll('[data-k]').forEach(b => {
-  let rep, hold;
+  let rep, hold, x0, y0, ok = false, fired = false;
   const stop = () => { clearTimeout(hold); clearInterval(rep); b.classList.remove('on'); };
+  const fire = () => { fired = true; send(b.dataset.k); };
   b.addEventListener('pointerdown', e => {
-    e.preventDefault(); b.classList.add('on'); send(b.dataset.k);
-    if (['volup','voldown'].includes(b.dataset.k)) hold = setTimeout(() => { rep = setInterval(() => send(b.dataset.k), 180); }, 450);
+    e.preventDefault(); ok = true; fired = false; x0 = e.clientX; y0 = e.clientY; b.classList.add('on');
+    if (['volup','voldown'].includes(b.dataset.k)) hold = setTimeout(() => { if (!ok) return; fire(); rep = setInterval(() => send(b.dataset.k), 180); }, 450);
   });
-  ['pointerup','pointercancel','pointerleave'].forEach(t => b.addEventListener(t, stop));
+  b.addEventListener('pointermove', e => { if (ok && Math.hypot(e.clientX - x0, e.clientY - y0) > 14) { ok = false; stop(); } });
+  b.addEventListener('pointerup', e => {
+    const good = ok && !fired && !document.hidden && Date.now() - hiddenAt > 1000 && Math.hypot(e.clientX - x0, e.clientY - y0) <= 14;
+    ok = false; stop(); if (good) fire();
+  });
+  ['pointercancel','pointerleave'].forEach(t => b.addEventListener(t, () => { ok = false; stop(); }));
   b.addEventListener('touchend', e => e.preventDefault(), { passive:false });   // evita el "clic" fantasma y el zoom
 });
+
+// QR del Wi-Fi: el nombre y la contraseña viven solo en este teléfono (localStorage) y en la TV; la TV dibuja el QR cuando lo pides
+(function () {
+  let w = null; try { w = JSON.parse(localStorage.getItem('mytv-wifi') || 'null'); } catch (e) { }
+  const hex = o => Array.from(new TextEncoder().encode(JSON.stringify(o))).map(x => x.toString(16).padStart(2, '0')).join('');
+  const sent = () => { try { return localStorage.getItem('mytv-wifi-sent') === JSON.stringify(w); } catch (e) { return false; } };
+  const lock = on => {   // bloqueado: no se puede escribir por accidente; "Cambiar" lo desbloquea
+    $('wifiForm').hidden = on; $('wifiLocked').hidden = !on;
+    if (on && w) $('wifiName').textContent = w.s;
+    if (on) { document.activeElement && document.activeElement.blur(); $('wifiCfg').open = false; }
+  };
+  if (w && w.s) { $('wifiS').value = w.s; $('wifiP').value = w.p || ''; lock(true); }
+  const flash = () => { const b = $('wifiBtn'), t = b.textContent; b.textContent = '✓ QR enviado a la TV'; setTimeout(() => { b.textContent = t; }, 3000); };
+  const show = async withData => {
+    if (!w || !w.s) { $('wifiCfg').open = true; toast('Escribe el nombre y la contraseña de tu Wi-Fi'); return; }
+    await send('city', withData ? 'wifiqr-' + hex(w) : 'wifiqr');
+    try { localStorage.setItem('mytv-wifi-sent', JSON.stringify(w)); } catch (e) { }
+    toast('QR en la TV (se cierra solo en 90 s)'); flash();
+  };
+  $('wifiBtn').addEventListener('click', () => show(!sent()));
+  $('wifiChange').addEventListener('click', () => { $('wifiForm').hidden = false; $('wifiLocked').hidden = true; $('wifiS').focus(); });
+  $('wifiForm').addEventListener('submit', e => {
+    e.preventDefault(); const s = $('wifiS').value.trim(), p = $('wifiP').value;
+    if (!s) return toast('Falta el nombre de la red');
+    w = { s, p }; try { localStorage.setItem('mytv-wifi', JSON.stringify(w)); } catch (e) { }
+    lock(true); show(true);
+  });
+})();
+
+// Cuentas Claras en la TV: el link (con su clave) vive solo en este teléfono y en la TV
+(function () {
+  const hex = s => Array.from(new TextEncoder().encode(s)).map(x => x.toString(16).padStart(2, '0')).join('');
+  const get = () => { try { return localStorage.getItem('mytv-cc') || ''; } catch (e) { return ''; } };
+  const open = async () => {
+    const k = get();
+    if (!k) { $('ccForm').hidden = false; $('ccIn').focus(); toast('Pega una vez el link de Cuentas Claras'); return; }
+    await send('city', 'cuentas-' + hex(k));
+    toast('💰 Cuentas en la TV · Atrás para volver');
+  };
+  $('ccBtn').addEventListener('click', open);
+  let pressT; // mantener presionado = cambiar el link guardado
+  $('ccBtn').addEventListener('pointerdown', () => { pressT = setTimeout(() => { $('ccForm').hidden = false; $('ccIn').value = ''; $('ccIn').focus(); toast('Pega el link nuevo de Cuentas'); }, 900); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => $('ccBtn').addEventListener(t, () => clearTimeout(pressT)));
+  $('ccForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const m = $('ccIn').value.match(/[#&?]k=([A-Za-z0-9_-]{20,})/);
+    if (!m) return toast('Ese no es el link de Cuentas (debe tener #k=)');
+    try { localStorage.setItem('mytv-cc', m[1]); } catch (er) { }
+    $('ccForm').hidden = true; $('ccIn').value = ''; document.activeElement && document.activeElement.blur(); open();
+  });
+})();
 
 // Panel táctil: deslizar = flechas (se repite si deslizas largo), tocar = OK
 const pad = $('pad'), dot = $('dot'); let sx, sy, lx, ly, moved, t0;
@@ -281,7 +351,7 @@ pad.addEventListener('pointermove', e => {
 });
 pad.addEventListener('pointerup', e => {
   dot.style.opacity = 0;
-  if (!moved && Date.now() - t0 < 450) { pad.classList.add('flash'); setTimeout(() => pad.classList.remove('flash'), 120); send('ok'); }
+  if (!moved && Date.now() - t0 < 450 && !document.hidden && Date.now() - hiddenAt > 1000) { pad.classList.add('flash'); setTimeout(() => pad.classList.remove('flash'), 120); send('ok'); }
   sx = null;
 });
 
