@@ -183,6 +183,14 @@ body.tv #balAmt{font-size:52px}
 .drow .ic{width:42px;height:42px;border-radius:12px;background:#fff1e6;display:grid;place-items:center;font-size:22px;flex:none}
 .drow .bd{flex:1;min-width:0}.drow .t{font-weight:800;line-height:1.2}.drow .s{font-size:14px;color:var(--mute);margin-top:2px}
 .drow .a{text-align:right;flex:none}.drow .a .v{font-weight:800;font-size:18px;color:var(--red)}.drow .a .s{font-size:12px}
+.drow.pick{cursor:pointer}
+.drow.sel{box-shadow:0 0 0 3px var(--green);background:#effaf4}
+.dchk{width:34px;height:34px;border-radius:10px;border:3px solid #cfc3b6;flex:none;display:grid;place-items:center;font-size:20px;font-weight:800;color:#fff;background:#fff}
+.drow.sel .dchk{background:var(--green);border-color:var(--green)}
+.drow .rc{font-size:13px;font-weight:800;color:#1f5fbf;padding:2px 0;display:inline-block}
+#dPaySel{background:#1f8f5a}
+#dPaySel.ask{background:var(--red)}
+.dhelp{font-size:14px;font-weight:700;color:var(--mute);margin:-4px 0 6px}
 .dsum{display:flex;justify-content:space-between;font-weight:800;font-size:18px;padding:10px 4px;border-top:2px dashed var(--line);margin-top:6px}
 
 /* ---------- Visor 3D ---------- */
@@ -332,6 +340,7 @@ body.tv #balAmt{font-size:52px}
     <div id="dTotal"></div>
     <div id="dSince"></div>
     <div id="dList"></div>
+    <button type="button" class="big" id="dPaySel" style="display:none"></button>
     <button type="button" class="big" id="dPay">💵 Anotar un pago</button>
     <button type="button" class="ghost" id="dNo">Cerrar</button>
   </div>
@@ -1619,37 +1628,80 @@ async function saveReciboFromCard(m, mov, estado) {
 }
 
 /* ---------- ¿Qué forma la deuda? ---------- */
-// Recorre todo en orden: cada pago (o lo que baja la deuda) tapa primero lo más viejo.
-function openDeudas() {
-  const b = balance(), list = sorted(), owe = b >= 0 ? 1 : -1; // 1: Yoan debe; -1: la Tía debe
-  const queue = []; let extra = 0; // lo pagado de más se usa para la siguiente deuda
+// Cada deuda queda pendiente hasta que un pago la cubre. Un pago puede decir qué deudas cubre ("cubre");
+// lo que no diga a qué va, tapa primero lo más viejo.
+function deudasPendientes() {
+  const b = balance(), owe = b >= 0 ? 1 : -1, list = sorted(); // owe 1: Yoan debe; -1: la Tía debe
+  const debts = [], byId = new Map(); let pool = 0;
+  for (const m of list) { const d = dOf(m) * owe; if (d > 0.004) { const q = { m, left: d, orig: d }; debts.push(q); byId.set(m.id, q); } }
   for (const m of list) {
-    let d = dOf(m) * owe;
-    if (d > 0) { const take = Math.min(extra, d); extra -= take; if (d - take > 0.004) queue.push({ m, left: d - take, orig: d }); }
-    else { d = -d; while (d > 0.004 && queue.length) { const q = queue[0], take = Math.min(q.left, d); q.left -= take; d -= take; if (q.left < 0.005) queue.shift(); } extra += Math.max(0, d); }
+    const d = dOf(m) * owe; if (d >= -0.004) continue;
+    let c = -d;
+    for (const x of (m.cubre || [])) { const q = byId.get(x.id); if (!q) continue; const take = Math.min(q.left, x.m, c); q.left -= take; c -= take; }
+    pool += c;
   }
+  for (const q of debts) { if (pool <= 0.004) break; const take = Math.min(q.left, pool); q.left -= take; pool -= take; }
+  return { b, owe, queue: debts.filter(q => q.left > 0.004) };
+}
+S.dsel = new Set();
+function openDeudas(keepSel) {
+  const { b, owe, queue } = deudasPendientes();
+  if (!keepSel) S.dsel = new Set();
+  for (const id of [...S.dsel]) if (!queue.some(q => q.m.id === id)) S.dsel.delete(id);
   const quien = owe > 0 ? "Yoan le debe a la Tía" : "La Tía le debe a Yoan";
   $("#dTitle").textContent = Math.abs(b) < 0.005 ? "🎉 ¡Tamos echa'o!" : `🧾 ${quien}`;
   const tot = $("#dTotal"); tot.textContent = money(b); tot.className = Math.abs(b) < 0.005 ? "cero" : "";
   const box = $("#dList"); box.textContent = "";
   const daysAgo = f => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ""); if (!m) return ""; const n = Math.round((new Date(new Date().toDateString()) - new Date(+m[1], +m[2] - 1, +m[3])) / 864e5); return n <= 0 ? "hoy" : n === 1 ? "hace 1 día" : `hace ${n} días`; };
+  const paySel = $("#dPaySel");
+  const calc = () => { const sel = queue.filter(q => S.dsel.has(q.m.id)); return { sel, sum: round2(sel.reduce((a, q) => a + q.left, 0)) }; };
+  const drawPay = () => {   // al cambiar lo marcado se cancela la confirmación pendiente
+    const { sel, sum } = calc();
+    paySel.classList.remove("ask"); delete paySel.dataset.ok;
+    paySel.style.display = sel.length ? "" : "none";
+    paySel.textContent = `💵 Pagar lo marcado (${sel.length}): ${money(sum)}`;
+    return { sel, sum };
+  };
   if (Math.abs(b) < 0.005 || !queue.length) {
     $("#dSince").textContent = "Nadie le debe nada a nadie ahora mismo.";
   } else {
     const first = queue[0].m.fecha;
     $("#dSince").textContent = first === today() ? "Desde hoy" : `Desde el ${niceDate(first)} (${daysAgo(first)})`;
+    box.appendChild(el("div", "dhelp", "Toca las deudas que vas a pagar ✅ (puedes marcar varias)"));
     for (const q of queue) {
       const m = q.m, rc = recByMov(m.id);
-      const r = document.createElement(rc ? "button" : "div"); r.className = "drow"; if (rc) { r.type = "button"; r.onclick = () => openReceipt(rc, -1); }
+      const r = el("div", "drow pick" + (S.dsel.has(m.id) ? " sel" : ""));
+      const chk = el("div", "dchk", S.dsel.has(m.id) ? "✓" : "");
       const ic = el("div", "ic", m.cat || catFor(m));
-      const bd = el("div", "bd"); bd.append(el("div", "t", m.desc || "Gasto"), el("div", "s", `${m.fecha === today() ? "desde hoy" : "desde el " + niceDate(m.fecha) + " · " + daysAgo(m.fecha)}${rc ? " · 🧾 ver recibo" : ""}`));
+      const bd = el("div", "bd"); bd.append(el("div", "t", m.desc || "Gasto"), el("div", "s", m.fecha === today() ? "desde hoy" : "desde el " + niceDate(m.fecha) + " · " + daysAgo(m.fecha)));
+      if (rc) { const rb = el("button", "rc", "🧾 ver recibo"); rb.type = "button"; rb.onclick = e => { e.stopPropagation(); openReceipt(rc, -1); }; bd.appendChild(rb); }
       const a = el("div", "a"); a.append(el("div", "v", money(q.left)));
       if (q.left < q.orig - 0.004) a.append(el("div", "s", `queda de ${money(q.orig)}`));
-      r.append(ic, bd, a); box.appendChild(r);
+      r.onclick = () => {
+        if (S.dsel.has(m.id)) S.dsel.delete(m.id); else S.dsel.add(m.id);
+        r.classList.toggle("sel", S.dsel.has(m.id)); chk.textContent = S.dsel.has(m.id) ? "✓" : ""; drawPay(); Sfx.tink();
+      };
+      r.append(chk, ic, bd, a); box.appendChild(r);
     }
     const s = el("div", "dsum"); s.append(el("span", "", "Total"), el("span", "", money(b))); box.appendChild(s);
   }
-  $("#dPay").textContent = owe > 0 ? "💵 Anotar un pago de Yoan" : "💵 Anotar un pago de la Tía";
+  drawPay();
+  paySel.onclick = async () => {
+    const { sel, sum } = calc();
+    if (!sel.length) return;
+    if (paySel.dataset.ok !== "1") { paySel.dataset.ok = "1"; paySel.classList.add("ask"); paySel.textContent = `¿Seguro? Toca otra vez para anotar el pago de ${money(sum)}`; clearTimeout(S._payT); S._payT = setTimeout(() => { delete paySel.dataset.ok; drawPay(); }, 6000); return; }
+    delete paySel.dataset.ok; paySel.disabled = true; paySel.textContent = "Guardando…";
+    const names = sel.map(q => q.m.desc || "gasto");
+    try {
+      const row = await api("add", { mov: { fecha: today(), desc: ("Pago de: " + names.join(", ")).slice(0, 80), monto: sum, tipo: "pago", pago: owe > 0 ? "yoan" : "arelis", cat: "💵", por: S.yo,
+        cubre: sel.map(q => ({ id: q.m.id, m: round2(q.left) })) } });
+      row.cubre = Array.isArray(row.cubre) ? row.cubre : [];
+      S.movs.push(row); afterChange([{ d: row }]);
+      toast(`✅ Pago anotado: ${money(sum)}`, () => removeMov(row, true));
+      S.dsel = new Set(); openDeudas(true);
+    } catch (e) { writeErr(e); } finally { paySel.disabled = false; }
+  };
+  $("#dPay").textContent = owe > 0 ? "💵 Anotar otro pago de Yoan" : "💵 Anotar otro pago de la Tía";
   $("#dPay").onclick = () => { $("#dsheet").classList.remove("on"); openSheet(); MF.tipo = "pago"; MF.pago = owe > 0 ? "yoan" : "arelis"; $("#mDesc").value = "Pago"; drawSheet(); };
   $("#dsheet").classList.add("on");
 }
@@ -1943,7 +1995,8 @@ async function load(first) {
     S.vapid = r.vapid || S.vapid;
     S.movs = (r.movs || []).map(x => ({ id: x.id, fecha: String(x.fecha || ""), desc: String(x.desc || ""), monto: Number(x.monto) || 0, tipo: String(x.tipo || ""),
       pago: x.pago === "arelis" ? "arelis" : x.pago === "yoan" ? "yoan" : "", delta: Number(x.delta) || 0, cat: Array.from(String(x.cat || "")).slice(0, 2).join(""),
-      por: x.por === "arelis" ? "arelis" : x.por === "yoan" ? "yoan" : "", ts: Number(x.ts) || 0 }));
+      por: x.por === "arelis" ? "arelis" : x.por === "yoan" ? "yoan" : "", ts: Number(x.ts) || 0,
+      cubre: Array.isArray(x.cubre) ? x.cubre.map(c => ({ id: String(c && c.id || ""), m: Number(c && c.m) || 0 })) : [] }));
     syncFrases(r.frases || [], first || !S.loaded);
     if (JSON.stringify(r.recibos || []) !== S._recJson) { S._recJson = JSON.stringify(r.recibos || []); syncRecibos(r.recibos || []); }
     if (JSON.stringify(r.mensajes || []) !== S._msgJson) { S._msgJson = JSON.stringify(r.mensajes || []); syncMsgs(r.mensajes || [], first || !S.loaded); }
