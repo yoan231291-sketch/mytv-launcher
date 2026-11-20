@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from find_cams import search, BAD
 EXTRA_BAD = re.compile(r"\btalk|adoraci|ko[sś]ci[oó]ł|church|\bmass\b|msza|worship|sermon|podcast|first person|journey|compilation|best of|walking|tour\b", re.I)
 DRY = "--dry" in sys.argv
+ARG = lambda k: next((a.split("=", 1)[1] for a in sys.argv if a.startswith(k + "=")), None)   # pruebas: --only=ciudad  --simulate-dead=idvideo
 MIN_CAMS, MAX_CAMS, MAX_DEAD = 2, 4, 30
 
 
@@ -68,12 +69,14 @@ def find_new(row, have):
 
 
 def main():
-    rows = parse(); log("ciudades:", len(rows))
+    rows = parse()
+    if ARG("--only"): rows = [r for r in rows if r["id"] in ARG("--only").split(",")]
+    log("ciudades:", len(rows))
     dead, status = [], {}
     try:
         for r in rows:
             for v in r["cams"]:
-                if v not in status: status[v] = alive(v)
+                if v not in status: status[v] = None if v == ARG("--simulate-dead") else alive(v)
                 if not status[v]: dead.append(v)
     except Blocked as e:
         log("YouTube limitó las consultas (429): no cambio nada"); return 1
@@ -84,7 +87,7 @@ def main():
     try:
         for r in rows:
             keep = [v for v in r["cams"] if status[v]]
-            if len(keep) < MIN_CAMS:
+            if len(keep) < len(r["cams"]) and len(keep) < MIN_CAMS:
                 for v in find_new(r, r["cams"]):
                     if len(keep) >= MAX_CAMS or (len(keep) >= MIN_CAMS): break
                     u = alive(v)
