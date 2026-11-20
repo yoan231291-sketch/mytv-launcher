@@ -8,7 +8,7 @@ sin reproductor de YouTube (sin anuncios, sin ruedita, sin textos), con 1-4 cám
 Solo biblioteca estándar + yt-dlp + ffmpeg.
 """
 from concurrent.futures import ThreadPoolExecutor
-import json, os, shutil, signal, subprocess, sys, threading, time
+import json, os, shutil, signal, socket, subprocess, sys, threading, time, urllib.request
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -65,6 +65,33 @@ def start(ids):
     return f"/s/{n}/index.m3u8"
 
 
+# La TV encuentra al Mac sola: cada 30 s publico mi IP de la red de la casa en un directorio (solo IPs privadas; la base lo exige).
+SB = "https://eythwqbeatakgsvjhrbl.supabase.co/rest/v1/mytv_relay?on_conflict=id"
+SB_KEY = "sb_publishable_CPOL_oOUFhvdJ1sSDqK_Kg_46iP00Cj"
+
+
+def lan_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("10.255.255.255", 1)); return s.getsockname()[0]
+    finally:
+        s.close()
+
+
+def announce_loop():
+    last = None
+    while True:
+        try:
+            url = f"http://{lan_ip()}:{PORT}"
+            req = urllib.request.Request(SB, data=json.dumps({"id": "main", "url": url, "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}).encode(), method="POST",
+                headers={"apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates,return=minimal"})
+            urllib.request.urlopen(req, timeout=10).read()
+            if url != last: print("anunciado:", url, flush=True); last = url
+        except Exception as e:
+            print("no pude anunciar la IP:", e, flush=True)
+        time.sleep(30)
+
+
 class H(SimpleHTTPRequestHandler):
     def __init__(s, *a, **k): super().__init__(*a, directory=ROOT, **k)
     def end_headers(s):
@@ -102,4 +129,5 @@ class H(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, lambda *a: (stop(), sys.exit(0)))
     print("relay en puerto", PORT, flush=True)
+    threading.Thread(target=announce_loop, daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()

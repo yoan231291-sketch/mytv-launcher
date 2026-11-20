@@ -487,7 +487,19 @@ function showCityToast() {
 
 // ---------- Video limpio desde el Mac (sin el reproductor de YouTube: sin anuncios, sin ruedita, sin textos) ----------
 // El Mac (relay.py) toma 1–4 cámaras y entrega UN solo video; la TV solo reproduce ese video.
-const RELAY = (() => { try { return localStorage.getItem('mytv-relay'); } catch { return null; } })() || 'http://10.20.20.24:8700';
+const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { } return null; };
+let RELAY = LS('mytv-relay') || LS('mytv-relay-last') || 'http://10.20.20.24:8700';   // el Mac se anuncia solo en un directorio (ver resolveRelay); 'mytv-relay' fuerza una IP a mano
+// Pregunta al directorio dónde está el Mac ahora (su IP cambia). Solo acepta IPs de red privada, puerto 8700.
+async function resolveRelay() {
+  if (LS('mytv-relay')) return RELAY;
+  try {
+    const r = await fetch('https://eythwqbeatakgsvjhrbl.supabase.co/rest/v1/mytv_relay?id=eq.main&select=url', { cache:'no-store',
+      headers:{ apikey:'sb_publishable_CPOL_oOUFhvdJ1sSDqK_Kg_46iP00Cj' }, signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined });
+    const u = ((await r.json())[0] || {}).url;
+    if (u && /^http:\/\/(10\.\d+|192\.168|172\.(1[6-9]|2\d|3[01]))\.\d+\.\d+:8700$/.test(u)) { if (u !== RELAY) log('relé en', u); RELAY = u; LS('mytv-relay-last', u); }
+  } catch (e) { log('directorio del relé no responde', e && e.message); }
+  return RELAY;
+}
 const USE_RELAY = (() => { try { return localStorage.getItem('mytv-relay-off') !== '1'; } catch { return true; } })();
 let relayIds = [], relayBad = 0, hls = null, relayDown = false, relayKey = '', quadLive = null, relayRetryT;
 const rv = () => $('rv');
@@ -501,7 +513,7 @@ function loadHlsLib() {
 async function relayPlay(ids) {
   const key = ids.join(','); relayKey = key; relayIds = ids; document.body.classList.add('relay');
   let j;
-  try { const r = await fetch(`${RELAY}/play?ids=${encodeURIComponent(key)}`, { cache:'no-store' }); j = await r.json(); }
+  try { await resolveRelay(); const r = await fetch(`${RELAY}/play?ids=${encodeURIComponent(key)}`, { cache:'no-store' }); j = await r.json(); }
   catch (e) { relayDown = true; toast('No encuentro el Mac con el relé de cámaras. Reintento…'); log('relé caído', e && e.message); clearTimeout(relayRetryT); relayRetryT = setTimeout(() => { if (relayKey === key) relayPlay(ids); }, 10000); return; }
   if (relayKey !== key) return;                       // llegó otra orden mientras tanto
   relayDown = false;
