@@ -67,6 +67,30 @@ def all_cams():
         return []
 
 
+ALT = {}
+
+
+def load_alts():
+    """Por cada cámara, las otras cámaras de su misma ciudad (de docs/cities.js): sirven de reemplazo si una está caída."""
+    try:
+        t = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "cities.js"), encoding="utf-8").read()
+        ALT.clear()
+        for m in re.finditer(r"cams:\[([^\]]*)\]", t):
+            ids = re.findall(r'"([A-Za-z0-9_-]{11})"', m.group(1))
+            for i in ids: ALT[i] = [x for x in ids if x != i]
+    except Exception as e:
+        print("sin cities.js:", e, flush=True)
+
+
+def pick(v, h):
+    """(id usado, url) de la cámara v o, si está caída, de otra de su ciudad; None si ninguna sirve."""
+    for c in [v] + ALT.get(v, [])[:2]:
+        try: return c, stream_url(c, h)
+        except Exception as e:
+            if "YouTube nos pidió esperar" in str(e): raise      # bloqueo general: no insisto con las demás
+    return None
+
+
 def warm_loop():
     """Deja listas las direcciones de todas las cámaras (720p); se repite antes de que caduquen."""
     while True:
@@ -97,20 +121,25 @@ def start(ids):
         if old != str(n): shutil.rmtree(os.path.join(ROOT, old), ignore_errors=True)
     d = os.path.join(ROOT, str(n)); shutil.rmtree(d, ignore_errors=True); os.makedirs(d)
     k = len(ids)
-    with ThreadPoolExecutor(4) as ex: urls = list(ex.map(lambda v: stream_url(v, 720 if k == 1 else 480), ids))
+    h = 720 if k == 1 else 480
+    with ThreadPoolExecutor(4) as ex: res = list(ex.map(lambda v: pick(v, h), ids))
+    if not any(res): raise RuntimeError("ninguna cámara responde")
+    cur["missing"] = [ids[i] for i, r in enumerate(res) if not r]      # las que no tienen señal se ven como un cuadro negro (no se cae todo)
+    good = [r[1] for r in res if r]
     inp = []
-    for u in urls:
+    for u in good:
         inp += ["-analyzeduration", "1000000", "-probesize", "1000000", "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5", "-i", u]
     hls = ["-f", "hls", "-hls_time", "2", "-hls_list_size", "6", "-hls_flags", "delete_segments+omit_endlist+independent_segments",
            "-hls_segment_filename", os.path.join(d, "s%05d.ts"), os.path.join(d, "index.m3u8")]
     if k == 1:
         cmd = [FFMPEG, "-loglevel", "warning", *inp, "-c:v", "copy", "-an", *hls]
     else:
-        cells = ""
-        for i in range(k):
-            cells += f"[{i}:v]scale=960:540:force_original_aspect_ratio=decrease,pad=960:540:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24[v{i}];"
-        for i in range(k, 4):   # relleno negro si hay menos de 4
-            cells += f"color=c=black:s=960x540:r=24[v{i}];"
+        cells, j = "", 0
+        for i in range(4):
+            if i < k and res[i]:
+                cells += f"[{j}:v]scale=960:540:force_original_aspect_ratio=decrease,pad=960:540:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24[v{i}];"; j += 1
+            else:                                   # sin señal (o faltan para 4): cuadro negro
+                cells += f"color=c=black:s=960x540:r=24[v{i}];"
         fc = cells + "[v0][v1][v2][v3]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0[o]"
         cmd = [FFMPEG, "-loglevel", "warning", *inp, "-filter_complex", fc, "-map", "[o]", "-c:v", "h264_videotoolbox", "-b:v", "5M", "-g", "48", "-an", *hls]
     cur["proc"] = subprocess.Popen(cmd, stderr=open(os.path.join(d, "ffmpeg.log"), "w"))
@@ -180,7 +209,7 @@ class H(SimpleHTTPRequestHandler):
                         proc = cur["proc"]
                     f = os.path.join(ROOT, path[3:])
                     for _ in range(48 if attempt == 1 else 80):      # espera a que exista la lista (12 s / 20 s)
-                        if os.path.exists(f) and "#EXTINF" in open(f).read(): return s.j({"url": path})
+                        if os.path.exists(f) and "#EXTINF" in open(f).read(): return s.j({"url": path, "missing": cur.get("missing", [])})
                         if proc is not None and proc.poll() is not None and attempt == 1: break     # ffmpeg murió: reintento ya
                         time.sleep(.25)
                     for v in ids: URLS.pop((v, 720 if len(ids) == 1 else 480), None)
@@ -202,6 +231,7 @@ if __name__ == "__main__":
     except OSError as e:
         print("puerto ocupado:", e, flush=True); os._exit(1)
     print("relay en puerto", PORT, flush=True)
+    load_alts()
     threading.Thread(target=announce_loop, daemon=True).start()
     threading.Thread(target=idle_loop, daemon=True).start()
     # (sin precalentado masivo: pedir 100+ cámaras de golpe a YouTube provoca el error 429 "Too Many Requests")
