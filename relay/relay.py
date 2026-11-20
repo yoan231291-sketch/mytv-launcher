@@ -165,5 +165,5 @@ if __name__ == "__main__":
         print("puerto ocupado:", e, flush=True); os._exit(1)
     print("relay en puerto", PORT, flush=True)
     threading.Thread(target=announce_loop, daemon=True).start()
-    threading.Thread(target=warm_loop, daemon=True).start()
+    # (sin precalentado masivo: pedir 100+ cámaras de golpe a YouTube provoca el error 429 "Too Many Requests")
     srv.serve_forever()
