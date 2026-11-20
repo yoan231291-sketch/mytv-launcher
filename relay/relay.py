@@ -173,16 +173,20 @@ class H(SimpleHTTPRequestHandler):
             ids = [x for x in parse_qs(u.query).get("ids", [""])[0].split(",") if x][:4]
             if not ids: return s.j({"error": "ids"}, 400)
             try:
-                with lock:
-                    alive = cur["proc"] and cur["proc"].poll() is None
-                    path = f"/s/{cur['n']}/index.m3u8" if (cur["ids"] == ids and alive) else start(ids)
-                f = os.path.join(ROOT, path[3:])
-                for _ in range(100):      # espera a que exista la lista (máx 25 s)
-                    if os.path.exists(f) and "#EXTINF" in open(f).read(): break
-                    time.sleep(.25)
-                else:
-                    return s.j({"error": "no arrancó"}, 504)
-                return s.j({"url": path})
+                for attempt in (1, 2):          # si la cámara no arranca en 12 s, la reintento una vez con una dirección nueva de YouTube
+                    with lock:
+                        alive = cur["proc"] and cur["proc"].poll() is None
+                        path = f"/s/{cur['n']}/index.m3u8" if (cur["ids"] == ids and alive) else start(ids)
+                        proc = cur["proc"]
+                    f = os.path.join(ROOT, path[3:])
+                    for _ in range(48 if attempt == 1 else 80):      # espera a que exista la lista (12 s / 20 s)
+                        if os.path.exists(f) and "#EXTINF" in open(f).read(): return s.j({"url": path})
+                        if proc is not None and proc.poll() is not None and attempt == 1: break     # ffmpeg murió: reintento ya
+                        time.sleep(.25)
+                    for v in ids: URLS.pop((v, 720 if len(ids) == 1 else 480), None)
+                    with lock:
+                        if cur["proc"] is proc: stop()
+                return s.j({"error": "no arrancó"}, 504)
             except Exception as e:
                 return s.j({"error": str(e)}, 500)
         if u.path.startswith("/s/"):
