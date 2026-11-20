@@ -171,8 +171,10 @@ def idle_loop():
 
 
 def announce_loop():
-    last = None
+    last, n = None, 0
     while True:
+        n += 1
+        if n % 20 == 0: load_alts()          # recarga las cámaras alternas (la revisión diaria puede cambiarlas)
         try:
             url = f"http://{lan_ip()}:{PORT}"
             req = urllib.request.Request(SB, data=json.dumps({"id": "main", "url": url, "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}).encode(), method="POST",
