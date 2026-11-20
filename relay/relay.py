@@ -8,7 +8,7 @@ sin reproductor de YouTube (sin anuncios, sin ruedita, sin textos), con 1-4 cám
 Solo biblioteca estándar + yt-dlp + ffmpeg.
 """
 from concurrent.futures import ThreadPoolExecutor
-import json, os, shutil, signal, socket, subprocess, sys, threading, time, urllib.request
+import json, os, re, shutil, signal, socket, subprocess, sys, threading, time, urllib.request
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -20,22 +20,53 @@ lock = threading.Lock()
 cur = {"ids": None, "proc": None, "n": 0, "t": 0}
 
 
+URLS = {}            # (id, altura) -> (url, hora): la URL de YouTube dura horas; así un cambio de cámara no repite yt-dlp
+URL_TTL = 3 * 3600
+
+
 def stream_url(v, h):
-    # Video en vivo "crudo" de YouTube (HLS) sin el reproductor: no trae anuncios
-    for fmt in (f"best[height<={h}][vcodec^=avc1]", f"bv*[height<={h}][vcodec^=avc1]", f"bv*[height<={h}]", "best"):
+    # Video en vivo "crudo" de YouTube (HLS) sin el reproductor: no trae anuncios. El 1er formato es el que casi siempre existe (los otros son respaldo)
+    k = (v, h); c = URLS.get(k)
+    if c and time.time() - c[1] < URL_TTL:
+        return c[0]
+    for fmt in (f"bv*[height<={h}][vcodec^=avc1]", f"bv*[height<={h}]", f"best[height<={h}][vcodec^=avc1]", "best"):
         r = subprocess.run([YTDLP, "-g", "-f", fmt, "--no-playlist", f"https://www.youtube.com/watch?v={v}"], capture_output=True, text=True, timeout=60)
         u = r.stdout.strip().splitlines()
         if r.returncode == 0 and u:
+            URLS[k] = (u[0], time.time())
             return u[0]
     raise RuntimeError("sin stream para " + v)
+
+
+def all_cams():
+    """Primera cámara de cada ciudad, leída de docs/cities.js (si está junto a este programa)."""
+    try:
+        t = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "cities.js"), encoding="utf-8").read()
+        return [m for m in re.findall(r'cams:\["([A-Za-z0-9_-]{11})"', t)]
+    except Exception:
+        return []
+
+
+def warm_loop():
+    """Deja listas las direcciones de todas las cámaras (720p); se repite antes de que caduquen."""
+    while True:
+        ids = all_cams()
+        with ThreadPoolExecutor(3) as ex:
+            list(ex.map(lambda v: _try(stream_url, v, 720), ids))
+        print(f"precalentadas {len(ids)} cámaras", flush=True)
+        time.sleep(URL_TTL - 600)
+
+
+def _try(f, *a):
+    try: return f(*a)
+    except Exception: return None
 
 
 def stop():
     p = cur["proc"]
     if p and p.poll() is None:
-        p.terminate()
-        try: p.wait(5)
-        except Exception: p.kill()
+        p.terminate()                                   # no espero: la nueva cámara arranca ya
+        threading.Thread(target=lambda: (_try(p.wait, 5) or p.poll() is not None or p.kill()), daemon=True).start()
     cur.update(ids=None, proc=None)
 
 
@@ -47,7 +78,7 @@ def start(ids):
     with ThreadPoolExecutor(4) as ex: urls = list(ex.map(lambda v: stream_url(v, 720 if k == 1 else 480), ids))
     inp = []
     for u in urls:
-        inp += ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5", "-i", u]
+        inp += ["-analyzeduration", "1000000", "-probesize", "1000000", "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5", "-i", u]
     hls = ["-f", "hls", "-hls_time", "2", "-hls_list_size", "6", "-hls_flags", "delete_segments+omit_endlist+independent_segments",
            "-hls_segment_filename", os.path.join(d, "s%05d.ts"), os.path.join(d, "index.m3u8")]
     if k == 1:
@@ -130,4 +161,5 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, lambda *a: (stop(), sys.exit(0)))
     print("relay en puerto", PORT, flush=True)
     threading.Thread(target=announce_loop, daemon=True).start()
+    threading.Thread(target=warm_loop, daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()
