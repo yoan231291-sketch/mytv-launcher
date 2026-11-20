@@ -17,11 +17,16 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 YTDLP, FFMPEG = shutil.which("yt-dlp") or "/opt/homebrew/bin/yt-dlp", shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
 os.makedirs(ROOT, exist_ok=True)
 lock = threading.Lock()
-cur = {"ids": None, "proc": None, "n": 0, "t": 0}
+cur = {"ids": None, "proc": None, "n": 0, "t": 0, "seen": 0}
+IDLE = int(os.environ.get("RELAY_IDLE", "60"))   # seg. sin que la TV pida video -> apago ffmpeg (ahorra Internet)
 
 
 URLS = {}            # (id, altura) -> (url, hora): la URL de YouTube dura horas; así un cambio de cámara no repite yt-dlp
 URL_TTL = 3 * 3600
+BAD = {}             # id -> hora del fallo: no vuelvo a preguntarle a YouTube por esa cámara en BAD_TTL
+BAD_TTL = 15 * 60
+COOL = {"until": 0}  # si YouTube responde 429 / "no eres un bot", pauso TODAS las consultas un rato (si no, nos bloquea más)
+COOL_TTL = 20 * 60
 
 
 def stream_url(v, h):
@@ -29,12 +34,27 @@ def stream_url(v, h):
     k = (v, h); c = URLS.get(k)
     if c and time.time() - c[1] < URL_TTL:
         return c[0]
+    now = time.time()
+    if now < COOL["until"]:
+        time.sleep(5)                                   # frena a la TV, que si no salta de cámara en cámara sin parar
+        raise RuntimeError(f"YouTube nos pidió esperar; reintento en {int(COOL['until'] - now) // 60 + 1} min")
+    if now - BAD.get(v, 0) < BAD_TTL:
+        time.sleep(2)
+        raise RuntimeError("cámara sin señal (reciente): " + v)
     for fmt in (f"bv*[height<={h}][vcodec^=avc1]", f"bv*[height<={h}]", f"best[height<={h}][vcodec^=avc1]", "best"):
-        r = subprocess.run([YTDLP, "-g", "-f", fmt, "--no-playlist", f"https://www.youtube.com/watch?v={v}"], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([YTDLP, "--no-update", "-g", "-f", fmt, "--no-playlist", f"https://www.youtube.com/watch?v={v}"], capture_output=True, text=True, timeout=60)
         u = r.stdout.strip().splitlines()
         if r.returncode == 0 and u:
             URLS[k] = (u[0], time.time())
             return u[0]
+        err = r.stderr
+        if "429" in err or "not a bot" in err:
+            COOL["until"] = time.time() + COOL_TTL
+            print("YouTube limitó las consultas (429): pausa de", COOL_TTL // 60, "min", flush=True)
+            raise RuntimeError("YouTube nos pidió esperar")
+        if "Requested format is not available" not in err:
+            break                                       # cámara caída / privada: otros formatos no la arreglan
+    BAD[v] = time.time()
     raise RuntimeError("sin stream para " + v)
 
 
@@ -73,6 +93,8 @@ def stop():
 def start(ids):
     stop()
     cur["n"] += 1; n = cur["n"]
+    for old in os.listdir(ROOT):                        # borro sesiones viejas (se acumulaban en out/)
+        if old != str(n): shutil.rmtree(os.path.join(ROOT, old), ignore_errors=True)
     d = os.path.join(ROOT, str(n)); shutil.rmtree(d, ignore_errors=True); os.makedirs(d)
     k = len(ids)
     with ThreadPoolExecutor(4) as ex: urls = list(ex.map(lambda v: stream_url(v, 720 if k == 1 else 480), ids))
@@ -109,6 +131,16 @@ def lan_ip():
         s.close()
 
 
+def idle_loop():
+    """Si la TV se apaga o deja de mirar, nadie pide segmentos: apago ffmpeg. La TV lo vuelve a pedir sola (relayPlay)."""
+    while True:
+        time.sleep(10)
+        with lock:
+            p = cur["proc"]
+            if p and p.poll() is None and time.time() - cur["seen"] > IDLE:
+                print(f"sin espectadores {IDLE}s: apago cámaras", flush=True); stop()
+
+
 def announce_loop():
     last = None
     while True:
@@ -137,6 +169,7 @@ class H(SimpleHTTPRequestHandler):
             with lock: stop()
             return s.j({"ok": True})
         if u.path == "/play":
+            cur["seen"] = time.time()
             ids = [x for x in parse_qs(u.query).get("ids", [""])[0].split(",") if x][:4]
             if not ids: return s.j({"error": "ids"}, 400)
             try:
@@ -153,6 +186,7 @@ class H(SimpleHTTPRequestHandler):
             except Exception as e:
                 return s.j({"error": str(e)}, 500)
         if u.path.startswith("/s/"):
+            cur["seen"] = time.time()
             s.path = u.path[2:]; return super().do_GET()
         s.send_error(404)
 
@@ -165,5 +199,6 @@ if __name__ == "__main__":
         print("puerto ocupado:", e, flush=True); os._exit(1)
     print("relay en puerto", PORT, flush=True)
     threading.Thread(target=announce_loop, daemon=True).start()
+    threading.Thread(target=idle_loop, daemon=True).start()
     # (sin precalentado masivo: pedir 100+ cámaras de golpe a YouTube provoca el error 429 "Too Many Requests")
     srv.serve_forever()
