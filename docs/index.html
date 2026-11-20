@@ -538,6 +538,7 @@ function startQuadLive(base) {
   const group = [0,1,2,3].map(i => CITIES[(quadLive.base + i) % n]);
   $('quadLabels').innerHTML = group.map(c => `<div>${c.flag} ${c.name}</div>`).join(''); $('quadLabels').classList.add('on');
   document.body.classList.add('idle'); clearTimeout(idleT); coverOff();
+  toast('Cargando 4 ciudades en vivo…'); setTimeout(() => { if (quadLive && !rvPlaying()) toast('Cargando 4 ciudades en vivo…'); }, 2300);
   relayPlay(group.map(c => c.cams[0]));
 }
 function stopQuadLive(back) { if (!quadLive) return; quadLive = null; $('quadLabels').classList.remove('on'); if (back) selectCity(cityIdx, false); }

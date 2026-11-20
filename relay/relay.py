@@ -127,9 +127,10 @@ def start(ids):
     cur["missing"] = [ids[i] for i, r in enumerate(res) if not r]      # las que no tienen señal se ven como un cuadro negro (no se cae todo)
     good = [r[1] for r in res if r]
     inp = []
+    pz = ("1000000", "1000000") if k == 1 else ("500000", "300000")      # 4 cámaras: sondeo corto = arranca antes
     for u in good:
-        inp += ["-analyzeduration", "1000000", "-probesize", "1000000", "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5", "-i", u]
-    hls = ["-f", "hls", "-hls_time", "2", "-hls_list_size", "6", "-hls_flags", "delete_segments+omit_endlist+independent_segments",
+        inp += ["-analyzeduration", pz[0], "-probesize", pz[1], "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5", "-i", u]
+    hls = ["-f", "hls", "-hls_time", "2" if k == 1 else "1", "-hls_list_size", "6" if k == 1 else "10", "-hls_flags", "delete_segments+omit_endlist+independent_segments",
            "-hls_segment_filename", os.path.join(d, "s%05d.ts"), os.path.join(d, "index.m3u8")]
     if k == 1:
         cmd = [FFMPEG, "-loglevel", "warning", *inp, "-c:v", "copy", "-an", *hls]
@@ -141,7 +142,7 @@ def start(ids):
             else:                                   # sin señal (o faltan para 4): cuadro negro
                 cells += f"color=c=black:s=960x540:r=24[v{i}];"
         fc = cells + "[v0][v1][v2][v3]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0[o]"
-        cmd = [FFMPEG, "-loglevel", "warning", *inp, "-filter_complex", fc, "-map", "[o]", "-c:v", "h264_videotoolbox", "-b:v", "5M", "-g", "48", "-an", *hls]
+        cmd = [FFMPEG, "-loglevel", "warning", *inp, "-filter_complex", fc, "-map", "[o]", "-c:v", "h264_videotoolbox", "-b:v", "5M", "-g", "24", "-an", *hls]
     cur["proc"] = subprocess.Popen(cmd, stderr=open(os.path.join(d, "ffmpeg.log"), "w"))
     cur["ids"] = ids; cur["t"] = time.time()
     return f"/s/{n}/index.m3u8"
