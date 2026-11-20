@@ -159,7 +159,11 @@ class H(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, lambda *a: (stop(), sys.exit(0)))
+    try:
+        srv = ThreadingHTTPServer(("0.0.0.0", PORT), H)      # primero el puerto: si está ocupado, salgo y launchd lo reintenta
+    except OSError as e:
+        print("puerto ocupado:", e, flush=True); os._exit(1)
     print("relay en puerto", PORT, flush=True)
     threading.Thread(target=announce_loop, daemon=True).start()
     threading.Thread(target=warm_loop, daemon=True).start()
-    ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()
+    srv.serve_forever()
