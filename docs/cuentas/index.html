@@ -226,6 +226,34 @@ body.tv #balAmt{font-size:52px}
 #toast{pointer-events:none;position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 16px;border-radius:16px;font-weight:800;opacity:0;transition:.3s;z-index:30;display:flex;gap:12px;align-items:center;max-width:92vw}
 #toast.on{opacity:1;transform:translateX(-50%);pointer-events:auto}
 #toast button{color:var(--gold);font-weight:800;text-decoration:underline}
+/* ---------- Bills por pagar ---------- */
+.bhead{display:flex;justify-content:space-between;align-items:center;gap:8px;position:sticky;top:0;background:var(--bg);padding:4px 0 8px;z-index:2}
+.bhead .t{font-weight:800;color:var(--mute);font-size:15px;line-height:1.25}
+#bAdd{flex:none;padding:12px 16px;border-radius:24px;background:var(--gold);font-weight:800;font-size:15px}
+.bcard{background:#fff;border-radius:18px;padding:12px 14px;margin:10px 0;box-shadow:0 2px 10px rgba(80,40,20,.07);border-left:6px solid #e8dccf}
+.bcard.soon{border-left-color:var(--gold)} .bcard.late{border-left-color:var(--red)} .bcard.paid{opacity:.8;border-left-color:var(--green)}
+.btop{display:flex;gap:10px;align-items:center}
+.btop .ic{width:44px;height:44px;border-radius:12px;background:#fff1e6;display:grid;place-items:center;font-size:24px;flex:none}
+.btop .bd{flex:1;min-width:0}.btop .n{font-weight:800;font-size:18px;line-height:1.2;overflow-wrap:anywhere}
+.btop .amt{font-family:"Baloo 2";font-weight:800;font-size:24px;flex:none}
+.bdue{display:inline-block;margin-top:3px;font-weight:800;font-size:14px;padding:3px 10px;border-radius:999px;background:#f3ece4;color:var(--mute)}
+.bdue.soon{background:#fff3cf;color:#8a6200}.bdue.late{background:#ffe3e3;color:#b4232a}.bdue.paid{background:#e3f6ec;color:#167a4b}
+.bsplit{display:flex;gap:8px;margin-top:10px}
+.bsplit div{flex:1;background:#fff6ec;border-radius:12px;padding:7px 10px;font-weight:800;font-size:15px;line-height:1.2}
+.bsplit small{display:block;font-size:12px;color:var(--mute);font-weight:700}
+.bnote{font-size:14px;color:var(--mute);margin-top:6px;line-height:1.3}
+.bacts{display:flex;gap:8px;margin-top:10px}
+.bacts button{padding:11px 12px;border-radius:12px;background:#f6ece3;font-weight:800;font-size:15px}
+.bacts .pay{flex:1;background:var(--green);color:#fff;font-size:17px}
+.bask{margin-top:10px;background:#effaf4;border-radius:14px;padding:10px}
+.bask .q{font-weight:800;margin-bottom:8px}
+.bask .seg button{font-size:16px}
+.bwhat{font-size:13px;color:var(--mute);font-weight:700;margin-top:8px;line-height:1.3}
+#blist .empty{white-space:pre-line}
+.bsec{font-weight:800;color:var(--mute);font-size:15px;margin:18px 0 4px}
+#bPrev{margin:14px 0;padding:12px;background:#fff;border-radius:14px;font-weight:800;line-height:1.4;white-space:pre-line}
+.b2{display:flex;gap:8px}.b2>div{flex:1;min-width:0}
+#bHalf{margin-top:8px;padding:10px 14px;border-radius:12px;background:#fff;border:2px solid var(--line);font-weight:800;font-size:15px}
 </style>
 </head>
 <body>
@@ -248,6 +276,7 @@ body.tv #balAmt{font-size:52px}
   <div id="tabs">
     <button type="button" data-t="chat" class="on">💬 Cuentín</button>
     <button type="button" data-t="compras">🛒 Compras</button>
+    <button type="button" data-t="bills">📅 Bills</button>
     <button type="button" data-t="hist">📒 Historial</button>
     <button type="button" data-t="msgs">💌 Tía</button>
   </div>
@@ -258,6 +287,7 @@ body.tv #balAmt{font-size:52px}
     <div id="cList"></div>
   </div>
   <div id="hist" class="pane"><div id="histList"></div></div>
+  <div id="bpane" class="pane"><div id="blist"></div></div>
   <div id="mpane" class="pane"><div id="mlist"></div></div>
 
   <div id="chips"></div>
@@ -292,6 +322,28 @@ body.tv #balAmt{font-size:52px}
     <div id="mPrev"></div>
     <button type="button" class="big" id="mOk">✅ Anotar</button>
     <button type="button" class="ghost" id="mNo">Cancelar</button>
+  </div>
+</div>
+<div id="bsheet" class="sheet2">
+  <div class="in">
+    <h3 id="bTitle">📅 Anotar un bill</h3>
+    <div class="s" style="color:var(--mute);font-size:15px;font-weight:700">No cambia la deuda todavía. Cuando se pague, tocas "Ya se pagó" y la app hace la cuenta sola.</div>
+    <div class="lbl">¿Qué bill es?</div>
+    <input id="bNom" type="text" maxlength="60" placeholder="Luz (AES), internet, renta…">
+    <div class="b2">
+      <div><div class="lbl">Total ($)</div><input id="bTot" type="text" inputmode="decimal" placeholder="0.00"></div>
+      <div><div class="lbl">¿Cuándo vence?</div><input id="bVen" type="date"></div>
+    </div>
+    <div class="b2">
+      <div><div class="lbl">🧔 Parte de Yoan</div><input id="bPY" type="text" inputmode="decimal" placeholder="0.00"></div>
+      <div><div class="lbl">👩 Parte de la Tía</div><input id="bPA" type="text" inputmode="decimal" placeholder="0.00"></div>
+    </div>
+    <button type="button" id="bHalf">½ A medias</button>
+    <div class="lbl">Nota (opcional)</div>
+    <input id="bNota" type="text" maxlength="200" placeholder="Ej: llegó el 24 de nov">
+    <div id="bPrev"></div>
+    <button type="button" class="big" id="bOk">📅 Guardar bill</button>
+    <button type="button" class="ghost" id="bNo">Cancelar</button>
   </div>
 </div>
 <div id="fsheet" class="sheet2">
@@ -421,7 +473,7 @@ const balance = () => round2(S.movs.reduce((s, m) => s + dOf(m), 0));
 function catFor(m) {
   const t = (m.desc || "").toLowerCase();
   if (m.tipo === "pago") return "💵";
-  const map = [["mercado","🛒"],["walmart","🛒"],["kroger","🛒"],["aldi","🛒"],["cigar","🚬"],["luz","💡"],["electric","💡"],["renta","🏠"],["rent","🏠"],
+  const map = [["mercado","🛒"],["walmart","🛒"],["kroger","🛒"],["aldi","🛒"],["cigar","🚬"],["luz","💡"],["electric","💡"],["aes","💡"],["duke","💡"],["agua","🚰"],["water","🚰"],["citizens","🔥"],["gas natural","🔥"],["renta","🏠"],["rent","🏠"],
     ["at&t","📱"],["att","📱"],["verizon","📱"],["iphone","📱"],["tablet","📱"],["internet","📶"],["café","☕"],["cafe","☕"],["tinte","💇"],
     ["gas","⛽"],["comida","🍗"],["carne","🥩"],["queso","🧀"],["farmacia","💊"]];
   for (const [k, e] of map) if (t.includes(k)) return e;
@@ -1189,6 +1241,7 @@ function renderChips() {
   const chips = [
     bell,
     ["✍️ A mano", () => openSheet()],
+    ["📅 Anotar un bill", () => openBill()],
     ["💬 Frases", () => openFrases()],
     [y ? "💵 Le pagué a la Tía" : "💵 Yoan me pagó", () => prefill(y ? "Le pagué $ a la Tía" : "Yoan me pagó $", y ? 11 : 15)],
     ["🛒 Pagué el mercado", () => prefill("Pagué el mercado, $", 19)],
@@ -1877,7 +1930,7 @@ function notifyChanges(prevMovs, prevRecs) {
 
 /* ---------- Modo TV: se maneja con las flechas del control ---------- */
 const TVMODE = HP.get("tv") === "1";
-const TV_TABS = ["compras", "hist", "msgs"];
+const TV_TABS = ["compras", "bills", "hist", "msgs"];
 if (TVMODE) {
   document.body.classList.add("tv");
   document.addEventListener("keydown", e => {
@@ -1924,12 +1977,13 @@ $("#kPaste").onclick = async () => {
 function showTab(t) {
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
   S.tab = t;
-  $("#chat").classList.toggle("on", t === "chat"); $("#hist").classList.toggle("on", t === "hist"); $("#compras").classList.toggle("on", t === "compras"); $("#mpane").classList.toggle("on", t === "msgs");
+  $("#chat").classList.toggle("on", t === "chat"); $("#hist").classList.toggle("on", t === "hist"); $("#compras").classList.toggle("on", t === "compras"); $("#bpane").classList.toggle("on", t === "bills"); $("#mpane").classList.toggle("on", t === "msgs");
   $("#cam").style.display = t === "msgs" ? "none" : "";
   $("#txt").placeholder = t === "msgs" ? `Escríbele a ${otherName()}…` : (S.yo === "yoan" ? "Ej: le pagué 120 a la Tía" : "Ej: pagué el mercado, 84");
   if (t === "msgs") { if (S.msgs.length) setSeen(Math.max(getSeen(), ...S.msgs.map(m => m.ts))); renderMsgs(); renderMsgTab(); }
   renderChips();
   if (t === "compras") renderCompras();
+  if (t === "bills") renderBills();
   if (t === "chat") scrollChat();
 }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => showTab(b.dataset.t));
@@ -1967,6 +2021,202 @@ $("#mOk").onclick = async () => {
 };
 
 /* =========================================================
+   📅 Bills por pagar (luz, internet…)
+   Se anotan con su fecha. NO cambian la deuda hasta que se pagan:
+   al tocar "Ya se pagó" el servidor anota que el otro debe su parte.
+   ========================================================= */
+S.bills = [];
+const num = v => round2(parseFloat(String(v || "").replace(",", ".")) || 0);
+function daysTo(f) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ""); if (!m) return 0;
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - t) / 86400000);
+}
+function dueInfo(b) {
+  const n = daysTo(b.vence), when = niceDate(b.vence);
+  if (n < 0) return { cls: "late", t: `⚠️ Se venció el ${when} (hace ${-n} día${n === -1 ? "" : "s"})` };
+  if (n === 0) return { cls: "late", t: "⚠️ ¡Vence HOY!" };
+  if (n === 1) return { cls: "soon", t: `⏰ Vence mañana (${when})` };
+  if (n <= 5) return { cls: "soon", t: `⏰ Vence ${when} · en ${n} días` };
+  return { cls: "", t: `📅 Vence ${when} · en ${n} días` };
+}
+const pendingBills = () => S.bills.filter(b => !b.pagado).sort((a, b) => a.vence.localeCompare(b.vence));
+function syncBills(list, initial) {
+  const prev = new Map(S.bills.map(b => [b.id, b]));
+  const js = JSON.stringify(list);
+  if (js === S._billJson) return;
+  S._billJson = js;
+  S.bills = list.map(b => ({ id: b.id, nombre: String(b.nombre || ""), total: Number(b.total) || 0, parte_yoan: Number(b.parte_yoan) || 0,
+    vence: String(b.vence || ""), pagado: !!b.pagado, pago: b.pago === "arelis" ? "arelis" : b.pago === "yoan" ? "yoan" : "", mov_id: b.mov_id || null,
+    nota: String(b.nota || ""), por: b.por === "arelis" ? "arelis" : b.por === "yoan" ? "yoan" : "" }));
+  if (!initial) for (const b of S.bills) {
+    if (S.mine.has(b.id)) continue;
+    const o = prev.get(b.id);
+    if (!o) toast(`📅 Nuevo bill: ${b.nombre} ${money(b.total)}, vence ${niceDate(b.vence)}`);
+    else if (!o.pagado && b.pagado) toast(`✅ ${NAMEC[b.pago] || "Alguien"} pagó ${b.nombre}`);
+  }
+  renderBillTab();
+  if (S.tab === "bills") renderBills();
+}
+function renderBillTab() {
+  const b = document.querySelector('#tabs button[data-t="bills"]'); if (!b) return;
+  b.textContent = "📅 Bills";
+  const n = pendingBills().filter(x => daysTo(x.vence) <= 5).length;
+  if (n) b.appendChild(el("span", "badge", String(n)));
+}
+function billCard(b) {
+  const c = el("div", "bcard");
+  const top = el("div", "btop");
+  const ic = el("div", "ic", catFor({ desc: b.nombre }) === "🧾" ? "📅" : catFor({ desc: b.nombre }));
+  const bd = el("div", "bd"); bd.appendChild(el("div", "n", b.nombre));
+  const pa = round2(b.total - b.parte_yoan);
+  if (b.pagado) {
+    c.classList.add("paid");
+    const debe = b.pago === "yoan" ? pa : b.parte_yoan;
+    bd.appendChild(el("span", "bdue paid", `✅ Lo pagó ${NAME[b.pago] || "alguien"}`));
+    top.append(ic, bd, el("div", "amt", money(b.total)));
+    c.appendChild(top);
+    if (debe > 0) c.appendChild(el("div", "bwhat", `${NAMEC[other(b.pago)]} le debe su parte a ${NAME[b.pago]}: ${money(debe)} (ya está en la cuenta)`));
+    const acts = el("div", "bacts");
+    const u = el("button", "", "↩️ Deshacer pago"); u.type = "button"; u.onclick = () => unpayBill(b, u);
+    acts.appendChild(u); c.appendChild(acts);
+    return c;
+  }
+  const di = dueInfo(b); if (di.cls) c.classList.add(di.cls);
+  bd.appendChild(el("span", "bdue " + di.cls, di.t));
+  top.append(ic, bd, el("div", "amt", money(b.total)));
+  c.appendChild(top);
+  const sp = el("div", "bsplit");
+  const y = el("div"); y.append(el("small", "", "🧔 Yoan"), document.createTextNode(money(b.parte_yoan)));
+  const a = el("div"); a.append(el("small", "", "👩 La Tía"), document.createTextNode(money(pa)));
+  sp.append(y, a); c.appendChild(sp);
+  if (b.nota) c.appendChild(el("div", "bnote", "📝 " + b.nota));
+  const acts = el("div", "bacts");
+  const pay = el("button", "pay", "✅ Ya se pagó"); pay.type = "button";
+  const ed = el("button", "", "✏️"); ed.type = "button"; ed.setAttribute("aria-label", "Editar"); ed.onclick = () => openBill(b);
+  const del = el("button", "", "🗑️"); del.type = "button"; del.setAttribute("aria-label", "Borrar");
+  acts.append(pay, ed, del); c.appendChild(acts);
+  pay.onclick = () => {
+    if (c.querySelector(".bask")) return;
+    const ask = el("div", "bask");
+    ask.appendChild(el("div", "q", "¿Quién le pagó a la compañía?"));
+    const seg = el("div", "seg");
+    for (const [w, t] of [["yoan", "🧔 Yoan"], ["arelis", "👩 La Tía"]]) {
+      const btn = el("button", "", t); btn.type = "button";
+      btn.onclick = () => payBill(b, w, ask);
+      seg.appendChild(btn);
+    }
+    ask.appendChild(seg);
+    ask.appendChild(el("div", "bwhat", `Si lo pagó Yoan, la Tía le debe ${money(pa)}. Si lo pagó la Tía, Yoan le debe ${money(b.parte_yoan)}.`));
+    const no = el("button", "ghost", "Cancelar"); no.type = "button"; no.onclick = () => ask.remove();
+    ask.appendChild(no); c.appendChild(ask);
+  };
+  del.onclick = () => {
+    if (c.querySelector(".confirm")) return;
+    const cf = el("div", "confirm");
+    const t = el("span", "", "¿Borrar este bill?"); t.style.cssText = "font-weight:800;font-size:14px;align-self:center";
+    const si = el("button", "si", "Sí, borrar"); si.type = "button";
+    const nn = el("button", "", "No"); nn.type = "button"; nn.onclick = () => cf.remove();
+    si.onclick = async () => {
+      si.disabled = true;
+      try { await api("bill_del", { id: b.id }); S.bills = S.bills.filter(x => x.id !== b.id); S._billJson = null; renderBills(); renderBillTab(); toast("Bill borrado 🗑️"); }
+      catch (e) { writeErr(e); si.disabled = false; }
+    };
+    cf.append(t, si, nn); c.appendChild(cf);
+  };
+  return c;
+}
+function renderBills() {
+  const box = $("#blist"); if (!box) return; box.textContent = "";
+  const head = el("div", "bhead");
+  const pend = pendingBills(), sum = round2(pend.reduce((s, b) => s + b.total, 0));
+  head.appendChild(el("div", "t", pend.length ? `${pend.length} por pagar · ${money(sum)}` : "Bills por pagar"));
+  const add = el("button", "", "➕ Anotar bill"); add.type = "button"; add.id = "bAdd"; add.onclick = () => openBill();
+  head.appendChild(add); box.appendChild(head);
+  if (!pend.length) box.appendChild(el("div", "empty", S.loaded ? "No hay bills por pagar 🎉\nCuando llegue uno (luz, internet…), anótalo aquí con su fecha para que no se olvide." : "Cargando…"));
+  for (const b of pend) box.appendChild(billCard(b));
+  const paid = S.bills.filter(b => b.pagado).sort((a, b) => b.vence.localeCompare(a.vence)).slice(0, 8);
+  if (paid.length) { box.appendChild(el("div", "bsec", "✅ Ya pagados")); for (const b of paid) box.appendChild(billCard(b)); }
+}
+async function payBill(b, pago, ask) {
+  ask.querySelectorAll("button").forEach(x => x.disabled = true);
+  try {
+    const r = await api("bill_pay", { id: b.id, pago, por: S.yo, fecha: today() });
+    S.mine.add(b.id);
+    Object.assign(b, { pagado: true, pago, mov_id: r.bill && r.bill.mov_id }); S._billJson = null;
+    if (r.mov) { S.mine.add(r.mov.id); S.movs.push(r.mov); afterChange([{ d: r.mov }]); }
+    renderBills(); renderBillTab();
+    const debe = pago === "yoan" ? round2(b.total - b.parte_yoan) : b.parte_yoan;
+    toast(debe > 0 ? `✅ Pagado. ${NAMEC[other(pago)]} le debe ${money(debe)} a ${NAME[pago]}` : "✅ ¡Pagado!", () => unpayBill(b));
+  } catch (e) { writeErr(e); ask.querySelectorAll("button").forEach(x => x.disabled = false); }
+}
+async function unpayBill(b, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const r = await api("bill_unpay", { id: b.id });
+    S.mine.add(b.id);
+    if (r.mov_id) { S.mine.add(r.mov_id); S.movs = S.movs.filter(x => x.id !== r.mov_id); afterChange(); }
+    Object.assign(b, { pagado: false, pago: "", mov_id: null }); S._billJson = null;
+    renderBills(); renderBillTab(); toast("Deshecho ↩️ El bill vuelve a por pagar");
+  } catch (e) { writeErr(e); if (btn) btn.disabled = false; }
+}
+/* Hoja para anotar / editar un bill */
+const BF = { id: null, last: "y" };
+function openBill(b) {
+  BF.id = b ? b.id : null;
+  $("#bTitle").textContent = b ? "✏️ Cambiar bill" : "📅 Anotar un bill";
+  $("#bNom").value = b ? b.nombre : ""; $("#bTot").value = b ? String(b.total) : "";
+  $("#bPY").value = b ? String(b.parte_yoan) : ""; $("#bPA").value = b ? String(round2(b.total - b.parte_yoan)) : "";
+  $("#bVen").value = b ? b.vence : ""; $("#bNota").value = b ? b.nota : "";
+  drawBill(); $("#bsheet").classList.add("on");
+  if (!b) setTimeout(() => $("#bNom").focus(), 300);
+}
+function curBill() {
+  return { nombre: $("#bNom").value.trim(), total: num($("#bTot").value), parte_yoan: num($("#bPY").value), vence: $("#bVen").value, nota: $("#bNota").value.trim() };
+}
+function drawBill() {
+  const b = curBill(), pa = round2(b.total - b.parte_yoan);
+  let msg = "";
+  if (!b.nombre) msg = "Escribe qué bill es 👆";
+  else if (!(b.total > 0)) msg = "Escribe el total del bill 👆";
+  else if (!b.vence) msg = "Pon la fecha en que vence 👆";
+  else if (b.parte_yoan > b.total) msg = "⚠️ La parte de Yoan no puede ser más que el total";
+  else msg = `${b.nombre}: ${money(b.total)} · vence ${niceDate(b.vence)}\n🧔 Yoan ${money(b.parte_yoan)} · 👩 Tía ${money(pa)}\nTodavía no cambia la deuda.`;
+  $("#bPrev").textContent = msg;
+}
+// Las dos partes siempre suman el total: si cambias una, la otra se ajusta.
+function fillOther(from) {
+  const t = num($("#bTot").value); if (!(t > 0)) return;
+  if (from === "y") { const y = num($("#bPY").value); $("#bPA").value = String(round2(Math.max(0, t - y))); }
+  else { const a = num($("#bPA").value); $("#bPY").value = String(round2(Math.max(0, t - a))); }
+}
+$("#bPY").addEventListener("input", () => { BF.last = "y"; fillOther("y"); drawBill(); });
+$("#bPA").addEventListener("input", () => { BF.last = "a"; fillOther("a"); drawBill(); });
+$("#bTot").addEventListener("input", () => { if ($("#bPY").value || $("#bPA").value) fillOther(BF.last); drawBill(); });
+["#bNom", "#bVen", "#bNota"].forEach(s => $(s).addEventListener("input", drawBill));
+$("#bHalf").onclick = () => { const t = num($("#bTot").value); if (!(t > 0)) { $("#bTot").focus(); return; } $("#bPY").value = String(round2(t / 2)); fillOther("y"); drawBill(); };
+$("#bNo").onclick = () => $("#bsheet").classList.remove("on");
+$("#bsheet").addEventListener("click", e => { if (e.target.id === "bsheet") $("#bsheet").classList.remove("on"); });
+$("#bOk").onclick = async () => {
+  const b = curBill();
+  if (!b.nombre) return $("#bNom").focus();
+  if (!(b.total > 0)) return $("#bTot").focus();
+  if (!b.vence) return $("#bVen").focus();
+  if (!$("#bPY").value && !$("#bPA").value) { b.parte_yoan = round2(b.total / 2); }
+  if (b.parte_yoan > b.total) return $("#bPY").focus();
+  $("#bOk").disabled = true;
+  try {
+    const x = await api(BF.id ? "bill_edit" : "bill_add", { id: BF.id, bill: b, por: S.yo });
+    S.mine.add(x.id);
+    S.bills = S.bills.filter(o => o.id !== x.id).concat([Object.assign({}, x, { pago: x.pago || "", por: x.por || "" })]); S._billJson = null;
+    $("#bsheet").classList.remove("on");
+    renderBillTab(); showTab("bills");
+    toast(BF.id ? "✅ Bill cambiado" : `📅 Anotado: ${x.nombre}, vence ${niceDate(x.vence)}`);
+  } catch (e) { writeErr(e); }
+  $("#bOk").disabled = false;
+};
+
+/* =========================================================
    Arranque: base compartida, usuario e IA
    ========================================================= */
 renderWho(); renderHist();
@@ -2000,6 +2250,7 @@ async function load(first) {
     syncFrases(r.frases || [], first || !S.loaded);
     if (JSON.stringify(r.recibos || []) !== S._recJson) { S._recJson = JSON.stringify(r.recibos || []); syncRecibos(r.recibos || []); }
     if (JSON.stringify(r.mensajes || []) !== S._msgJson) { S._msgJson = JSON.stringify(r.mensajes || []); syncMsgs(r.mensajes || [], first || !S.loaded); }
+    syncBills(r.bills || [], !S.loaded || first);
     if (S.loaded && !first) notifyChanges(prevMovs, prevRecs);
     $("#sync").textContent = "🟢 al día";
     const wasLoaded = S.loaded; S.loaded = true;
