@@ -35,6 +35,10 @@ function cleanItems(arr: any) {
   return arr.slice(0, 300).map((i: any) => ({ c: String(i?.c || "").slice(0, 40), n: String(i?.n || i?.c || "").slice(0, 80), p: r2(Number(i?.p) || 0) }))
     .filter((i: any) => i.n && isFinite(i.p));
 }
+// Recibo del bill: foto (jpeg/png/webp) o PDF, en base64. Máx ~7.5 MB de base64 (~5.5 MB de archivo).
+const FILE_MIMES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+const okFile = (d: any) => typeof d === "string" && d.length > 100 && d.length < 7_500_000 && /^[A-Za-z0-9+/=]+$/.test(d);
+const fOut = (x: any) => ({ id: x.id, bill_id: x.bill_id, nombre: x.nombre, mime: x.mime, size: Number(x.size), por: x.por, ts: Number(x.ts) });
 const okFoto = (d: any) => typeof d === "string" && d.length > 100 && d.length < 3_000_000 && /^[A-Za-z0-9+/=]+$/.test(d);
 
 /* ---------- Avisos (Web Push) al otro teléfono ---------- */
@@ -149,6 +153,7 @@ Deno.serve(async (req) => {
         for (const f of fc || []) nf[f.recibo_id] = (nf[f.recibo_id] || 0) + 1;
         const { data: ms } = await sb.from("cc_mensajes").select("id,de,texto,ref_tipo,ref_id,ref_txt,ts").eq("household_id", h.id).order("ts", { ascending: false }).limit(300);
         const { data: bl } = await sb.from("cc_bills").select("*").eq("household_id", h.id).order("vence").limit(500);
+        const { data: bf } = await sb.from("cc_bill_files").select("id,bill_id,nombre,mime,size,por,ts").eq("household_id", h.id).order("ts").limit(2000);
         return json({
           vapid: (await vapid())?.pub || null,
           mensajes: (ms || []).reverse().map((m: any) => ({ ...m, ts: Number(m.ts) })),
@@ -156,6 +161,7 @@ Deno.serve(async (req) => {
           frases: (fr || []).map((f: any) => ({ ...f, ts: Number(f.ts) })),
           recibos: (rc || []).map(rOut).map((r: any) => ({ ...r, fotos: nf[r.id] || 0 })),
           bills: (bl || []).map(bOut),
+          bill_files: (bf || []).map(fOut),
         });
       }
       case "add": {
@@ -244,6 +250,30 @@ Deno.serve(async (req) => {
         const { data: b } = await sb.from("cc_bills").select("pagado").eq("household_id", h.id).eq("id", String(body.id || "")).maybeSingle();
         if (b?.pagado) return json({ error: "pagado" }, 400); // primero hay que deshacer el pago
         const { error } = await sb.from("cc_bills").delete().eq("household_id", h.id).eq("id", String(body.id || ""));
+        if (error) throw error;
+        return json({ ok: true });
+      }
+      case "bill_file_add": {
+        const mime = String(body.mime || "");
+        if (!FILE_MIMES.includes(mime) || !okFile(body.data)) return json({ error: "archivo" }, 400);
+        const { data: b } = await sb.from("cc_bills").select("id,nombre").eq("household_id", h.id).eq("id", String(body.bill_id || "")).maybeSingle();
+        if (!b) return json({ error: "bill" }, 404);
+        const who = WHO.includes(body.por) ? body.por : yo;
+        const row = { household_id: h.id, bill_id: b.id, nombre: String(body.nombre || (mime === "application/pdf" ? "recibo.pdf" : "recibo.jpg")).slice(0, 80),
+          mime, size: Math.round(body.data.length * 3 / 4), data: body.data, por: who || null, ts: Date.now() };
+        const { data, error } = await sb.from("cc_bill_files").insert(row).select("id,bill_id,nombre,mime,size,por,ts").single();
+        if (error) throw error;
+        await later(notify(h.id, who, "📎 Cuentas Claras", `${NOM[who] || "Alguien"} subió el recibo de ${b.nombre}`, "bill"));
+        return json(fOut(data));
+      }
+      case "bill_file_get": {
+        const { data, error } = await sb.from("cc_bill_files").select("id,bill_id,nombre,mime,size,data").eq("household_id", h.id).eq("id", String(body.id || "")).maybeSingle();
+        if (error) throw error;
+        if (!data) return json({ error: "archivo" }, 404);
+        return json({ ...fOut(data), data: data.data });
+      }
+      case "bill_file_del": {
+        const { error } = await sb.from("cc_bill_files").delete().eq("household_id", h.id).eq("id", String(body.id || ""));
         if (error) throw error;
         return json({ ok: true });
       }

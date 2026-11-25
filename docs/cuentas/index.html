@@ -254,6 +254,22 @@ body.tv #balAmt{font-size:52px}
 #bPrev{margin:14px 0;padding:12px;background:#fff;border-radius:14px;font-weight:800;line-height:1.4;white-space:pre-line}
 .b2{display:flex;gap:8px}.b2>div{flex:1;min-width:0}
 #bHalf{margin-top:8px;padding:10px 14px;border-radius:12px;background:#fff;border:2px solid var(--line);font-weight:800;font-size:15px}
+/* ---------- Recibo del bill (PDF o foto) ---------- */
+.bfiles{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.bfile{display:flex;align-items:center;gap:6px;background:#eef4ff;color:#1f4fa8;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;max-width:100%}
+.bfile .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
+.bfile .rm{background:none;color:var(--mute);font-size:15px;padding:0 0 0 4px}
+.bup{background:#fff;border:2px dashed #b9c9ea;color:#1f4fa8;border-radius:12px;padding:8px 12px;font-weight:800;font-size:14px}
+.bup:disabled{opacity:.6}
+#bfv{position:fixed;inset:0;z-index:45;display:none;flex-direction:column;background:#2a2233;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#bfv.on{display:flex;animation:up .25s ease-out}
+.bfvtop{display:flex;align-items:center;gap:8px;padding:10px 12px;color:#fff}
+.bfvtop .t{flex:1;min-width:0;font-weight:800;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bfvtop button{background:#fff;color:var(--ink);border-radius:12px;padding:9px 12px;font-weight:800;font-size:14px;flex:none}
+#bfvBody{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:6px 10px 16px}
+#bfvBody img,#bfvBody canvas{display:block;width:100%;height:auto;background:#fff;border-radius:8px;margin:0 auto 10px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+#bfvBody.zoom img,#bfvBody.zoom canvas{width:220%;max-width:none}
+#bfvBody .msg{color:#fff;text-align:center;font-weight:800;padding:40px 10px}
 </style>
 </head>
 <body>
@@ -409,6 +425,16 @@ body.tv #balAmt{font-size:52px}
     <button type="button" id="rvFotoBtn">📷 Ver foto original</button>
   </div>
 </div>
+<div id="bfv">
+  <div class="bfvtop">
+    <div class="t" id="bfvTitle"></div>
+    <button type="button" id="bfvZoom">🔍</button>
+    <button type="button" id="bfvShare">⬇️ Guardar</button>
+    <button type="button" id="bfvX" aria-label="Cerrar">✖️</button>
+  </div>
+  <div id="bfvBody"></div>
+</div>
+<input type="file" id="bfInput" accept="application/pdf,image/*" hidden>
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1950,6 +1976,7 @@ if (TVMODE) {
 // Atrás desde la tele: primero cierra lo que esté abierto aquí; si no hay nada, la tele vuelve a las cámaras
 window.ccBack = () => {
   if ($("#rv").classList.contains("on")) { rvClose(); return true; }
+  if ($("#bfv").classList.contains("on")) { $("#bfvX").click(); return true; }
   const s = document.querySelector(".sheet2.on, #sheet.on"); if (s) { s.classList.remove("on"); return true; }
   return false;
 };
@@ -2025,7 +2052,7 @@ $("#mOk").onclick = async () => {
    Se anotan con su fecha. NO cambian la deuda hasta que se pagan:
    al tocar "Ya se pagó" el servidor anota que el otro debe su parte.
    ========================================================= */
-S.bills = [];
+S.bills = []; S.billFiles = [];
 const num = v => round2(parseFloat(String(v || "").replace(",", ".")) || 0);
 function daysTo(f) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ""); if (!m) return 0;
@@ -2043,7 +2070,7 @@ function dueInfo(b) {
 const pendingBills = () => S.bills.filter(b => !b.pagado).sort((a, b) => a.vence.localeCompare(b.vence));
 function syncBills(list, initial) {
   const prev = new Map(S.bills.map(b => [b.id, b]));
-  const js = JSON.stringify(list);
+  const js = JSON.stringify([list, S.billFiles]);
   if (js === S._billJson) return;
   S._billJson = js;
   S.bills = list.map(b => ({ id: b.id, nombre: String(b.nombre || ""), total: Number(b.total) || 0, parte_yoan: Number(b.parte_yoan) || 0,
@@ -2055,6 +2082,8 @@ function syncBills(list, initial) {
     if (!o) toast(`📅 Nuevo bill: ${b.nombre} ${money(b.total)}, vence ${niceDate(b.vence)}`);
     else if (!o.pagado && b.pagado) toast(`✅ ${NAMEC[b.pago] || "Alguien"} pagó ${b.nombre}`);
   }
+  if (!initial) for (const f of S.billFiles) if (!S.mine.has(f.id) && !(S._seenFiles || new Set()).has(f.id) && f.por && f.por !== S.yo) toast(`📎 ${NAMEC[f.por]} subió un recibo`);
+  S._seenFiles = new Set(S.billFiles.map(f => f.id));
   renderBillTab();
   if (S.tab === "bills") renderBills();
 }
@@ -2079,7 +2108,7 @@ function billCard(b) {
     if (debe > 0) c.appendChild(el("div", "bwhat", `${NAMEC[other(b.pago)]} le debe su parte a ${NAME[b.pago]}: ${money(debe)} (ya está en la cuenta)`));
     const acts = el("div", "bacts");
     const u = el("button", "", "↩️ Deshacer pago"); u.type = "button"; u.onclick = () => unpayBill(b, u);
-    acts.appendChild(u); c.appendChild(acts);
+    acts.appendChild(u); c.appendChild(filesRow(b)); c.appendChild(acts);
     return c;
   }
   const di = dueInfo(b); if (di.cls) c.classList.add(di.cls);
@@ -2091,6 +2120,7 @@ function billCard(b) {
   const a = el("div"); a.append(el("small", "", "👩 La Tía"), document.createTextNode(money(pa)));
   sp.append(y, a); c.appendChild(sp);
   if (b.nota) c.appendChild(el("div", "bnote", "📝 " + b.nota));
+  c.appendChild(filesRow(b));
   const acts = el("div", "bacts");
   const pay = el("button", "pay", "✅ Ya se pagó"); pay.type = "button";
   const ed = el("button", "", "✏️"); ed.type = "button"; ed.setAttribute("aria-label", "Editar"); ed.onclick = () => openBill(b);
@@ -2160,6 +2190,101 @@ async function unpayBill(b, btn) {
     renderBills(); renderBillTab(); toast("Deshecho ↩️ El bill vuelve a por pagar");
   } catch (e) { writeErr(e); if (btn) btn.disabled = false; }
 }
+/* ---------- Recibo del bill: PDF o foto/screenshot de la galería ---------- */
+const BFILE = { bill: null, cache: {}, cur: null, pdfjs: null };
+const MAX_PDF = 5.5 * 1024 * 1024;
+function filesOf(b) { return S.billFiles.filter(f => f.bill_id === b.id); }
+function filesRow(b) {
+  const row = el("div", "bfiles");
+  for (const f of filesOf(b)) {
+    const chip = el("div", "bfile");
+    const open = el("button", "", ""); open.type = "button"; open.style.cssText = "display:flex;gap:6px;align-items:center;color:inherit;font-weight:800";
+    open.append(document.createTextNode(f.mime === "application/pdf" ? "📄" : "🖼️"), el("span", "nm", f.nombre || "Recibo"));
+    open.onclick = () => openBillFile(f);
+    const rm = el("button", "rm", "✕"); rm.type = "button"; rm.setAttribute("aria-label", "Quitar recibo");
+    rm.onclick = async () => {
+      if (rm.dataset.sure !== "1") { rm.dataset.sure = "1"; rm.textContent = "¿Quitar?"; rm.style.color = "var(--red)"; setTimeout(() => { rm.dataset.sure = ""; rm.textContent = "✕"; rm.style.color = ""; }, 3500); return; }
+      rm.disabled = true;
+      try { await api("bill_file_del", { id: f.id }); S.billFiles = S.billFiles.filter(x => x.id !== f.id); S._billJson = null; renderBills(); toast("Recibo quitado 🗑️"); }
+      catch (e) { writeErr(e); rm.disabled = false; }
+    };
+    chip.append(open, rm); row.appendChild(chip);
+  }
+  const up = el("button", "bup", filesOf(b).length ? "📎 Otro" : "📎 Subir recibo (PDF o foto)"); up.type = "button";
+  up.onclick = () => { BFILE.bill = b; BFILE.btn = up; $("#bfInput").value = ""; $("#bfInput").click(); };
+  row.appendChild(up);
+  return row;
+}
+function fileToB64(file) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
+}
+$("#bfInput").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0], b = BFILE.bill, btn = BFILE.btn;
+  if (!file || !b) return;
+  const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+  if (isPdf && file.size > MAX_PDF) { toast("Ese PDF es muy grande (máx 5 MB) 😅"); return; }
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Subiendo…"; }
+  try {
+    let data, mime, nombre;
+    if (isPdf) { data = await fileToB64(file); mime = "application/pdf"; nombre = file.name || "recibo.pdf"; }
+    else { data = await shrink(file, 2200); mime = "image/jpeg"; nombre = "Foto del recibo"; }
+    const f = await api("bill_file_add", { bill_id: b.id, mime, nombre, data, por: S.yo });
+    BFILE.cache[f.id] = data; S.mine.add(f.id);
+    S.billFiles.push(f); S._billJson = null; renderBills();
+    toast(`📎 Recibo guardado en ${b.nombre}`);
+  } catch (er) {
+    if (er && er.status === 400) toast("No pude leer ese archivo. Prueba con un PDF o una foto 📄");
+    else writeErr(er);
+    renderBills();
+  }
+});
+function loadPdfJs() {
+  if (BFILE.pdfjs) return BFILE.pdfjs;
+  BFILE.pdfjs = new Promise((res, rej) => {
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(window.pdfjsLib); };
+    s.onerror = () => { BFILE.pdfjs = null; rej(new Error("pdfjs")); }; document.head.appendChild(s);
+  });
+  return BFILE.pdfjs;
+}
+const b64ToBytes = b64 => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
+async function openBillFile(f) {
+  const body = $("#bfvBody"); body.textContent = ""; body.classList.remove("zoom");
+  $("#bfvTitle").textContent = f.nombre || "Recibo"; BFILE.cur = f;
+  body.appendChild(el("div", "msg", "⏳ Cargando el recibo…"));
+  $("#bfv").classList.add("on");
+  try {
+    if (!BFILE.cache[f.id]) BFILE.cache[f.id] = (await api("bill_file_get", { id: f.id })).data;
+    if (BFILE.cur !== f) return;
+    const data = BFILE.cache[f.id];
+    body.textContent = "";
+    if (f.mime !== "application/pdf") { const img = new Image(); img.alt = f.nombre || "Recibo"; img.src = `data:${f.mime};base64,${data}`; body.appendChild(img); return; }
+    const lib = await loadPdfJs();
+    const pdf = await lib.getDocument({ data: b64ToBytes(data) }).promise;
+    const w = Math.min(1600, Math.max(800, body.clientWidth * (window.devicePixelRatio || 2) * 1.5));
+    for (let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
+      if (BFILE.cur !== f) return;
+      const page = await pdf.getPage(i); const v1 = page.getViewport({ scale: 1 }); const vp = page.getViewport({ scale: w / v1.width });
+      const cv = document.createElement("canvas"); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      body.appendChild(cv);
+      await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise;
+    }
+  } catch (e) {
+    body.textContent = ""; body.appendChild(el("div", "msg", "No pude mostrar el recibo aquí. Toca ⬇️ Guardar para abrirlo en el teléfono."));
+  }
+}
+$("#bfvX").onclick = () => { $("#bfv").classList.remove("on"); BFILE.cur = null; };
+$("#bfvZoom").onclick = () => $("#bfvBody").classList.toggle("zoom");
+$("#bfvShare").onclick = async () => {
+  const f = BFILE.cur; if (!f || !BFILE.cache[f.id]) return;
+  const ext = f.mime === "application/pdf" ? ".pdf" : ".jpg";
+  const name = (f.nombre || "recibo").replace(/\.(pdf|jpe?g)$/i, "") + ext;
+  const file = new File([b64ToBytes(BFILE.cache[f.id])], name, { type: f.mime });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+};
+
 /* Hoja para anotar / editar un bill */
 const BF = { id: null, last: "y" };
 function openBill(b) {
@@ -2250,6 +2375,7 @@ async function load(first) {
     syncFrases(r.frases || [], first || !S.loaded);
     if (JSON.stringify(r.recibos || []) !== S._recJson) { S._recJson = JSON.stringify(r.recibos || []); syncRecibos(r.recibos || []); }
     if (JSON.stringify(r.mensajes || []) !== S._msgJson) { S._msgJson = JSON.stringify(r.mensajes || []); syncMsgs(r.mensajes || [], first || !S.loaded); }
+    S.billFiles = Array.isArray(r.bill_files) ? r.bill_files : [];
     syncBills(r.bills || [], !S.loaded || first);
     if (S.loaded && !first) notifyChanges(prevMovs, prevRecs);
     $("#sync").textContent = "🟢 al día";
