@@ -18,6 +18,9 @@
   /* Sin transform ni recorte: en Fire TV el video va en una capa aparte; debe quedar justo en 0,0 y del tamaño de la pantalla */
   #rv { position:absolute; inset:0; width:100vw; height:100vh; object-fit:cover; background:#000; display:none; }
   body.relay #rv { display:block; }
+  /* Cámaras directas (carreteras de Indiana): video HLS propio, sin YouTube ni el Mac */
+  body.direct #rv { display:block; }
+  body.direct #player { visibility:hidden; }
   #quadLabels { position:fixed; inset:0; z-index:2; pointer-events:none; display:none; grid-template:1fr 1fr / 1fr 1fr; }
   #quadLabels.on { display:grid; }
   #quadLabels div { align-self:end; justify-self:start; margin:0 0 2.2vh 1.6vw; font-size:clamp(13px,1.3vw,26px); font-weight:600; background:rgba(0,0,0,.45); padding:.35em .8em; border-radius:999px; text-shadow:0 1px 6px rgba(0,0,0,.6); }
@@ -300,7 +303,7 @@ function paintQuad() {
 function refreshQuad() {
   if (ov !== 'quad') { clearInterval(quadT); return; }
   [...$('gridQuad').children].forEach(el => {
-    const u = `https://i.ytimg.com/vi/${el.dataset.v}/sddefault_live.jpg?t=${Date.now()}`, im = new Image();
+    const u = thumbOf(el.dataset.v) + (isDirect(el.dataset.v) ? '?t=' : '&t=') + Date.now(), im = new Image();
     im.onload = () => { el.style.backgroundImage = `url(${u})`; }; im.src = u;
   });
 }
@@ -534,14 +537,44 @@ const rvPlayer = {
 };
 // 4 ciudades en vivo a pantalla completa (un solo video armado por el Mac)
 function startQuadLive(base) {
+  directStop();
   const n = CITIES.length; quadLive = { base: ((base % n) + n) % n };
-  const group = [0,1,2,3].map(i => CITIES[(quadLive.base + i) % n]);
+  const group = []; for (let i = 0; group.length < 4 && i < n; i++) { const c = CITIES[(quadLive.base + i) % n]; if (!isDirect(c.cams[0])) group.push(c); }
   $('quadLabels').innerHTML = group.map(c => `<div>${c.flag} ${c.name}</div>`).join(''); $('quadLabels').classList.add('on');
   document.body.classList.add('idle'); clearTimeout(idleT); coverOff();
   toast('Cargando 4 ciudades en vivo…'); setTimeout(() => { if (quadLive && !rvPlaying()) toast('Cargando 4 ciudades en vivo…'); }, 2300);
   relayPlay(group.map(c => c.cams[0]));
 }
 function stopQuadLive(back) { if (!quadLive) return; quadLive = null; $('quadLabels').classList.remove('on'); if (back) selectCity(cityIdx, false); }
+
+// ---------- Cámaras directas: video HLS público (INDOT / carreteras de Indiana). No pasan por YouTube ni por el Mac ----------
+const isDirect = v => /^https:\/\/[^ ]+\.m3u8/.test(v || '');
+// Foto de la cámara: miniatura de YouTube, o la foto que publica INDOT para su cámara
+const thumbOf = v => { if (!isDirect(v)) return `https://i.ytimg.com/vi/${v}/sddefault_live.jpg?x=1`; const m = /rtplive\/([^/]+)\//.exec(v); return m ? `https://public.carsprogram.org/cameras/IN/${m[1]}.flv.png` : ''; };
+const camName = v => { const c = city(), i = c.cams.indexOf(v); return (c.names || [])[i] || ''; };
+let directOn = false, directUrl = '', directBad = 0;
+async function directPlay(url) {
+  directUrl = url; directOn = true;
+  if (USE_RELAY) { if (relayKey) { relayKey = ''; clearTimeout(relayRetryT); try { fetch(RELAY + '/stop'); } catch {} } }
+  else { try { player.stopVideo(); } catch {} }
+  document.body.classList.add('direct');
+  try { await loadHlsLib(); } catch { toast('No se pudo cargar el reproductor de video'); return; }
+  if (directUrl !== url || !directOn) return;          // llegó otra orden mientras tanto
+  if (hls) { try { hls.destroy(); } catch {} hls = null; }
+  const v = rv(); hls = new Hls({ liveSyncDurationCount:3, maxBufferLength:15, enableWorker:true, manifestLoadingMaxRetry:4, levelLoadingMaxRetry:4 });
+  hls.loadSource(url); hls.attachMedia(v);
+  hls.on(Hls.Events.MANIFEST_PARSED, () => { try { hls.currentLevel = hls.levels.length - 1; } catch {} });   // siempre la mejor calidad
+  hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) { try { d.type === Hls.ErrorTypes.NETWORK_ERROR ? hls.startLoad() : hls.recoverMediaError(); } catch {} } });
+  v.play().catch(() => {});
+}
+function directStop() {
+  if (!directOn) return; directOn = false; directUrl = '';
+  if (hls) { try { hls.destroy(); } catch {} hls = null; }
+  try { rv().pause(); rv().removeAttribute('src'); rv().load(); } catch {}
+  document.body.classList.remove('direct');
+}
+// Vigilante: si el video de la carretera se congela (INDOT corta las transmisiones cada cierto tiempo), se vuelve a pedir solo
+setInterval(() => { if (!directOn || bg) return; if (rvPlaying()) { directBad = 0; return; } if (++directBad >= 3) { directBad = 0; log('carretera detenida: la pido de nuevo'); directPlay(directUrl); } }, 8000);
 
 function onYouTubeIframeAPIReady() {
   log('API lista');
@@ -574,7 +607,7 @@ let revealT, watchT, coverT;
 function coverOn(id) {
   if (USE_RELAY) return;
   const c = $('camCover');
-  c.style.setProperty('--img', `url(https://i.ytimg.com/vi/${id}/sddefault_live.jpg)`);
+  c.style.setProperty('--img', `url(${thumbOf(id)})`);
   c.classList.remove('off'); clearTimeout(coverT); coverT = setTimeout(coverOff, 12000);
 }
 function coverOff() { clearTimeout(coverT); $('camCover').classList.add('off'); }
@@ -593,6 +626,14 @@ setInterval(() => { try { if (!bg && playerReady && player.getPlayerState() === 
 function playCurrent() {
   if (bg || !playerReady || !cams.length) return;
   const want = cams[camIdx];
+  $('citySpot').textContent = '· ' + (camName(want) || city().spot);
+  if (isDirect(want)) {
+    directPlay(want);
+    clearTimeout(watchT);
+    watchT = setTimeout(() => { if (!bg && directOn && directUrl === want && !rvPlaying()) { log('carretera sin señal', want); nextCam(true); } }, 30000);
+    return;
+  }
+  directStop();
   coverOn(want);
   player.loadVideoById(want); player.mute(); player.playVideo();
   // Vigilante: si en 40 s la cámara no está reproduciendo (caída o trabada), pasa a la siguiente.
@@ -610,11 +651,11 @@ function nextCam(auto, dir = 1) {
   }
   const n = cams.length; if (!n) return;
   camIdx = (camIdx + dir + n) % n;
-  toast(`Cámara ${camIdx + 1} de ${n}`);
+  toast(`Cámara ${camIdx + 1} de ${n}` + (camName(cams[camIdx]) ? ' · ' + camName(cams[camIdx]) : ''));
   playCurrent();
 }
 // Latido para el vigilante de la app: solo mientras la cámara se reproduce de verdad
-setInterval(() => { try { if (TV && AndroidTV.alive && playerReady && player.getPlayerState() === 1) AndroidTV.alive(); } catch {} }, 20000);
+setInterval(() => { try { if (TV && AndroidTV.alive && playerReady && (directOn ? rvPlaying() : player.getPlayerState() === 1)) AndroidTV.alive(); } catch {} }, 20000);
 // Cada 6 h, si nadie está usando la TV (interfaz oculta), recarga para liberar memoria y tomar cambios
 setInterval(() => { if (!bg && performance.now() > 6 * 3600e3 && document.body.classList.contains('idle') && !ov) location.reload(); }, 60e3);
 // Segundo plano: con otra app abierta, la cámara se DETIENE (libera el decodificador de video de la TV)
@@ -639,7 +680,7 @@ window.tvBackground = on => {
   bg = !!on;
   clearTimeout(watchT); clearTimeout(coverT);
   if (!playerReady) return;
-  if (bg) { try { player.stopVideo(); } catch {} log('segundo plano: cámara detenida'); }
+  if (bg) { directStop(); try { player.stopVideo(); } catch {} log('segundo plano: cámara detenida'); }
   else { log('de vuelta: reanudando'); playCurrent(); }
 };
 document.addEventListener('visibilitychange', () => { if (TV) return; window.tvBackground(document.hidden); });
